@@ -35,6 +35,7 @@
 #include "PoseLib/solvers/relpose_6pt_focal.h"
 #include "PoseLib/solvers/relpose_7pt.h"
 #include "PoseLib/solvers/relpose_mono_3pt.h"
+#include "PoseLib/solvers/relpose_reldepth_3pt.h"
 
 #include <iostream>
 
@@ -57,7 +58,7 @@ void RelativePoseEstimator::refine_model(CameraPose *pose) const {
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
     bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = 25;
+    bundle_opt.max_iterations = opt.lo_iterations;
 
     // Find approximate inliers and bundle over these with a truncated loss
     std::vector<char> inliers;
@@ -278,12 +279,21 @@ void FundamentalEstimator::refine_model(Eigen::Matrix3d *F) const {
 
 void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *models) {
     sampler.generate_sample(&sample);
+    models->clear();
+    if (opt.use_astermark) {
+        for (size_t k = 0; k < sample_sz; ++k) {
+            x1s[k] = x1[sample[k]];
+            x2s[k] = x2[sample[k]];
+            rel_depth[k] = mono_depth[sample[k]](1) / mono_depth[sample[k]](2);
+        }
+        essential_3pt_relative_depth(x1s, x2s, rel_depth, models, opt.all_permutations);
+        return;
+    }
     for (size_t k = 0; k < sample_sz; ++k) {
         x1s[k] = x1[sample[k]];
         x2s[k] = x2[sample[k]];
         sigmas[k] = mono_depth[sample[k]];
     }
-    models->clear();
     essential_3pt_mono_depth(x1s, x2s, sigmas, models);
 }
 double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
@@ -292,7 +302,7 @@ double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    if (graduated_optimization) {
+    if (graduated_optimization and opt.lo_iterations > 0) {
         bundle_opt.max_iterations = 5;
         for (size_t k = 0; k < graduated_steps; ++k) {
             double factor = (graduated_steps - k) / static_cast<double>(graduated_steps);
@@ -302,7 +312,7 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
         }
     }
     bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = 25;
+    bundle_opt.max_iterations = opt.lo_iterations;
     refine_relpose(x1, x2, pose, bundle_opt);
 }
 

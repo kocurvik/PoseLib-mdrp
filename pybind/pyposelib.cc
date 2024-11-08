@@ -1,3 +1,4 @@
+#include "pybind_extension.h"
 #include "helpers.h"
 
 #include <PoseLib/poselib.h>

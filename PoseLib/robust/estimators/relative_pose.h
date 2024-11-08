@@ -168,11 +168,11 @@ class RelativePoseMonoDepthEstimator {
                                          const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma,
                                          bool try_permuations = true)
         : num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1), x2(points2D_2), mono_depth(sigma),
-          try_all_permutations(try_permuations),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);
         x2s.resize(sample_sz);
         sigmas.resize(sample_sz);
+        rel_depth.resize(sample_sz);
         sample.resize(sample_sz);
     }
     void generate_models(std::vector<CameraPose> *models);
@@ -185,7 +185,6 @@ class RelativePoseMonoDepthEstimator {
     const std::vector<Point2D> &x1;
     const std::vector<Point2D> &x2;
     const std::vector<Point2D> &mono_depth;
-    const bool try_all_permutations = true;
     // TODO expose these
     const bool graduated_optimization = true;
     const double graduated_max = 8.0;
@@ -194,6 +193,7 @@ class RelativePoseMonoDepthEstimator {
     // pre-allocated vectors for sampling
     std::vector<Eigen::Vector2d> x1s, x2s;
     std::vector<Eigen::Vector2d> sigmas;
+    std::vector<double> rel_depth;
     std::vector<size_t> sample;
 };
 

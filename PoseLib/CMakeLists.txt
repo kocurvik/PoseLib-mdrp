@@ -23,6 +23,7 @@ set(SOURCES
     solvers/relpose_upright_planar_3pt.cc
     solvers/relpose_8pt.cc
     solvers/relpose_mono_3pt.cc
+    solvers/relpose_reldepth_3pt.cc
     solvers/relpose_5pt.cc
     solvers/relpose_7pt.cc
     solvers/relpose_6pt_focal.cc
@@ -35,7 +36,7 @@ set(SOURCES
     misc/essential.cc
     misc/re3q3.cc
     misc/colmap_models.cc
-        misc/decompositions.cc
+    misc/decompositions.cc
     robust.cc
     robust/ransac.cc
     robust/bundle.cc
@@ -74,6 +75,7 @@ set(HEADERS_PUBLIC
     solvers/relpose_8pt.h
     solvers/relpose_5pt.h
     solvers/relpose_mono_3pt.h
+    solvers/relpose_reldepth_3pt.h
     solvers/relpose_7pt.h
     solvers/relpose_6pt_focal.h
     solvers/gen_relpose_upright_4pt.h

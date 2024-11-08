@@ -38,6 +38,9 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "progressive_sampling", ransac_opt.progressive_sampling);
     update(input, "max_prosac_iterations", ransac_opt.max_prosac_iterations);
     update(input, "real_focal_check", ransac_opt.real_focal_check);
+    update(input, "lo_iterations", ransac_opt.lo_iterations);
+    update(input, "use_astermark", ransac_opt.use_astermark);
+    update(input, "all_permutations", ransac_opt.all_permutations);
 }
 
 void update_bundle_options(const py::dict &input, BundleOptions &bundle_opt) {
@@ -78,6 +81,9 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["progressive_sampling"] = ransac_opt.progressive_sampling;
     dict["max_prosac_iterations"] = ransac_opt.max_prosac_iterations;
     dict["real_focal_check"] = ransac_opt.real_focal_check;
+    dict["lo_iterations"] = ransac_opt.lo_iterations;
+    dict["use_astermark"] = ransac_opt.use_astermark;
+    dict["all_permutations"] = ransac_opt.all_permutations;
 }
 
 void write_to_dict(const BundleOptions &bundle_opt, py::dict &dict) {
