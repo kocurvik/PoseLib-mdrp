@@ -10,98 +10,69 @@ Eigen::MatrixXcd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
 
     const double *d = data.data();
     Eigen::VectorXd coeffs(18);
-    coeffs[0] = std::pow(d[6], 2) - 2 * d[6] * d[7] + std::pow(d[7], 2) + std::pow(d[9], 2) - 2 * d[9] * d[10] +
-                std::pow(d[10], 2);
-    coeffs[1] = -std::pow(d[0], 2) + 2 * d[0] * d[1] - std::pow(d[1], 2) - std::pow(d[3], 2) + 2 * d[3] * d[4] -
-                std::pow(d[4], 2);
-    coeffs[2] = 2 * std::pow(d[6], 2) * d[15] - 2 * d[6] * d[7] * d[15] + 2 * std::pow(d[9], 2) * d[15] -
-                2 * d[9] * d[10] * d[15] - 2 * d[6] * d[7] * d[16] + 2 * std::pow(d[7], 2) * d[16] -
-                2 * d[9] * d[10] * d[16] + 2 * std::pow(d[10], 2) * d[16];
-    coeffs[3] = std::pow(d[6], 2) * std::pow(d[15], 2) + std::pow(d[9], 2) * std::pow(d[15], 2) -
-                2 * d[6] * d[7] * d[15] * d[16] - 2 * d[9] * d[10] * d[15] * d[16] +
-                std::pow(d[7], 2) * std::pow(d[16], 2) + std::pow(d[10], 2) * std::pow(d[16], 2) + std::pow(d[15], 2) -
-                2 * d[15] * d[16] + std::pow(d[16], 2);
-    coeffs[4] = -2 * std::pow(d[0], 2) * d[12] + 2 * d[0] * d[1] * d[12] - 2 * std::pow(d[3], 2) * d[12] +
-                2 * d[3] * d[4] * d[12] + 2 * d[0] * d[1] * d[13] - 2 * std::pow(d[1], 2) * d[13] +
-                2 * d[3] * d[4] * d[13] - 2 * std::pow(d[4], 2) * d[13];
-    coeffs[5] = -std::pow(d[0], 2) * std::pow(d[12], 2) - std::pow(d[3], 2) * std::pow(d[12], 2) +
-                2 * d[0] * d[1] * d[12] * d[13] + 2 * d[3] * d[4] * d[12] * d[13] -
-                std::pow(d[1], 2) * std::pow(d[13], 2) - std::pow(d[4], 2) * std::pow(d[13], 2) - std::pow(d[12], 2) +
-                2 * d[12] * d[13] - std::pow(d[13], 2);
-    coeffs[6] = std::pow(d[6], 2) - 2 * d[6] * d[8] + std::pow(d[8], 2) + std::pow(d[9], 2) - 2 * d[9] * d[11] +
-                std::pow(d[11], 2);
-    coeffs[7] = -std::pow(d[0], 2) + 2 * d[0] * d[2] - std::pow(d[2], 2) - std::pow(d[3], 2) + 2 * d[3] * d[5] -
-                std::pow(d[5], 2);
-    coeffs[8] = 2 * std::pow(d[6], 2) * d[15] - 2 * d[6] * d[8] * d[15] + 2 * std::pow(d[9], 2) * d[15] -
-                2 * d[9] * d[11] * d[15] - 2 * d[6] * d[8] * d[17] + 2 * std::pow(d[8], 2) * d[17] -
-                2 * d[9] * d[11] * d[17] + 2 * std::pow(d[11], 2) * d[17];
-    coeffs[9] = std::pow(d[6], 2) * std::pow(d[15], 2) + std::pow(d[9], 2) * std::pow(d[15], 2) -
-                2 * d[6] * d[8] * d[15] * d[17] - 2 * d[9] * d[11] * d[15] * d[17] +
-                std::pow(d[8], 2) * std::pow(d[17], 2) + std::pow(d[11], 2) * std::pow(d[17], 2) + std::pow(d[15], 2) -
-                2 * d[15] * d[17] + std::pow(d[17], 2);
-    coeffs[10] = -2 * std::pow(d[0], 2) * d[12] + 2 * d[0] * d[2] * d[12] - 2 * std::pow(d[3], 2) * d[12] +
-                 2 * d[3] * d[5] * d[12] + 2 * d[0] * d[2] * d[14] - 2 * std::pow(d[2], 2) * d[14] +
-                 2 * d[3] * d[5] * d[14] - 2 * std::pow(d[5], 2) * d[14];
-    coeffs[11] = -std::pow(d[0], 2) * std::pow(d[12], 2) - std::pow(d[3], 2) * std::pow(d[12], 2) +
-                 2 * d[0] * d[2] * d[12] * d[14] + 2 * d[3] * d[5] * d[12] * d[14] -
-                 std::pow(d[2], 2) * std::pow(d[14], 2) - std::pow(d[5], 2) * std::pow(d[14], 2) - std::pow(d[12], 2) +
-                 2 * d[12] * d[14] - std::pow(d[14], 2);
-    coeffs[12] = std::pow(d[7], 2) - 2 * d[7] * d[8] + std::pow(d[8], 2) + std::pow(d[10], 2) - 2 * d[10] * d[11] +
-                 std::pow(d[11], 2);
-    coeffs[13] = -std::pow(d[1], 2) + 2 * d[1] * d[2] - std::pow(d[2], 2) - std::pow(d[4], 2) + 2 * d[4] * d[5] -
-                 std::pow(d[5], 2);
-    coeffs[14] = 2 * std::pow(d[7], 2) * d[16] - 2 * d[7] * d[8] * d[16] + 2 * std::pow(d[10], 2) * d[16] -
-                 2 * d[10] * d[11] * d[16] - 2 * d[7] * d[8] * d[17] + 2 * std::pow(d[8], 2) * d[17] -
-                 2 * d[10] * d[11] * d[17] + 2 * std::pow(d[11], 2) * d[17];
-    coeffs[15] = std::pow(d[7], 2) * std::pow(d[16], 2) + std::pow(d[10], 2) * std::pow(d[16], 2) -
-                 2 * d[7] * d[8] * d[16] * d[17] - 2 * d[10] * d[11] * d[16] * d[17] +
-                 std::pow(d[8], 2) * std::pow(d[17], 2) + std::pow(d[11], 2) * std::pow(d[17], 2) + std::pow(d[16], 2) -
-                 2 * d[16] * d[17] + std::pow(d[17], 2);
-    coeffs[16] = -2 * std::pow(d[1], 2) * d[13] + 2 * d[1] * d[2] * d[13] - 2 * std::pow(d[4], 2) * d[13] +
-                 2 * d[4] * d[5] * d[13] + 2 * d[1] * d[2] * d[14] - 2 * std::pow(d[2], 2) * d[14] +
-                 2 * d[4] * d[5] * d[14] - 2 * std::pow(d[5], 2) * d[14];
-    coeffs[17] = -std::pow(d[1], 2) * std::pow(d[13], 2) - std::pow(d[4], 2) * std::pow(d[13], 2) +
-                 2 * d[1] * d[2] * d[13] * d[14] + 2 * d[4] * d[5] * d[13] * d[14] -
-                 std::pow(d[2], 2) * std::pow(d[14], 2) - std::pow(d[5], 2) * std::pow(d[14], 2) - std::pow(d[13], 2) +
-                 2 * d[13] * d[14] - std::pow(d[14], 2);
+    coeffs[0] = std::pow(d[6],2) - 2*d[6]*d[7] + std::pow(d[7],2) + std::pow(d[9],2) - 2*d[9]*d[10] + std::pow(d[10],2);
+    coeffs[1] = -std::pow(d[0],2) + 2*d[0]*d[1] - std::pow(d[1],2) - std::pow(d[3],2) + 2*d[3]*d[4] - std::pow(d[4],2);
+    coeffs[2] = 2*std::pow(d[6],2)*d[15] - 2*d[6]*d[7]*d[15] + 2*std::pow(d[9],2)*d[15] - 2*d[9]*d[10]*d[15] - 2*d[6]*d[7]*d[16] + 2*std::pow(d[7],2)*d[16] - 2*d[9]*d[10]*d[16] + 2*std::pow(d[10],2)*d[16];
+    coeffs[3] = std::pow(d[6],2)*std::pow(d[15],2) + std::pow(d[9],2)*std::pow(d[15],2) - 2*d[6]*d[7]*d[15]*d[16] - 2*d[9]*d[10]*d[15]*d[16] + std::pow(d[7],2)*std::pow(d[16],2) + std::pow(d[10],2)*std::pow(d[16],2) + std::pow(d[15],2) - 2*d[15]*d[16] + std::pow(d[16],2);
+    coeffs[4] = -2*std::pow(d[0],2)*d[12] + 2*d[0]*d[1]*d[12] - 2*std::pow(d[3],2)*d[12] + 2*d[3]*d[4]*d[12] + 2*d[0]*d[1]*d[13] - 2*std::pow(d[1],2)*d[13] + 2*d[3]*d[4]*d[13] - 2*std::pow(d[4],2)*d[13];
+    coeffs[5] = -std::pow(d[0],2)*std::pow(d[12],2) - std::pow(d[3],2)*std::pow(d[12],2) + 2*d[0]*d[1]*d[12]*d[13] + 2*d[3]*d[4]*d[12]*d[13] - std::pow(d[1],2)*std::pow(d[13],2) - std::pow(d[4],2)*std::pow(d[13],2) - std::pow(d[12],2) + 2*d[12]*d[13] - std::pow(d[13],2);
+    coeffs[6] = std::pow(d[6],2) - 2*d[6]*d[8] + std::pow(d[8],2) + std::pow(d[9],2) - 2*d[9]*d[11] + std::pow(d[11],2);
+    coeffs[7] = -std::pow(d[0],2) + 2*d[0]*d[2] - std::pow(d[2],2) - std::pow(d[3],2) + 2*d[3]*d[5] - std::pow(d[5],2);
+    coeffs[8] = 2*std::pow(d[6],2)*d[15] - 2*d[6]*d[8]*d[15] + 2*std::pow(d[9],2)*d[15] - 2*d[9]*d[11]*d[15] - 2*d[6]*d[8]*d[17] + 2*std::pow(d[8],2)*d[17] - 2*d[9]*d[11]*d[17] + 2*std::pow(d[11],2)*d[17];
+    coeffs[9] = std::pow(d[6],2)*std::pow(d[15],2) + std::pow(d[9],2)*std::pow(d[15],2) - 2*d[6]*d[8]*d[15]*d[17] - 2*d[9]*d[11]*d[15]*d[17] + std::pow(d[8],2)*std::pow(d[17],2) + std::pow(d[11],2)*std::pow(d[17],2) + std::pow(d[15],2) - 2*d[15]*d[17] + std::pow(d[17],2);
+    coeffs[10] = -2*std::pow(d[0],2)*d[12] + 2*d[0]*d[2]*d[12] - 2*std::pow(d[3],2)*d[12] + 2*d[3]*d[5]*d[12] + 2*d[0]*d[2]*d[14] - 2*std::pow(d[2],2)*d[14] + 2*d[3]*d[5]*d[14] - 2*std::pow(d[5],2)*d[14];
+    coeffs[11] = -std::pow(d[0],2)*std::pow(d[12],2) - std::pow(d[3],2)*std::pow(d[12],2) + 2*d[0]*d[2]*d[12]*d[14] + 2*d[3]*d[5]*d[12]*d[14] - std::pow(d[2],2)*std::pow(d[14],2) - std::pow(d[5],2)*std::pow(d[14],2) - std::pow(d[12],2) + 2*d[12]*d[14] - std::pow(d[14],2);
+    coeffs[12] = std::pow(d[7],2) - 2*d[7]*d[8] + std::pow(d[8],2) + std::pow(d[10],2) - 2*d[10]*d[11] + std::pow(d[11],2);
+    coeffs[13] = -std::pow(d[1],2) + 2*d[1]*d[2] - std::pow(d[2],2) - std::pow(d[4],2) + 2*d[4]*d[5] - std::pow(d[5],2);
+    coeffs[14] = 2*std::pow(d[7],2)*d[16] - 2*d[7]*d[8]*d[16] + 2*std::pow(d[10],2)*d[16] - 2*d[10]*d[11]*d[16] - 2*d[7]*d[8]*d[17] + 2*std::pow(d[8],2)*d[17] - 2*d[10]*d[11]*d[17] + 2*std::pow(d[11],2)*d[17];
+    coeffs[15] = std::pow(d[7],2)*std::pow(d[16],2) + std::pow(d[10],2)*std::pow(d[16],2) - 2*d[7]*d[8]*d[16]*d[17] - 2*d[10]*d[11]*d[16]*d[17] + std::pow(d[8],2)*std::pow(d[17],2) + std::pow(d[11],2)*std::pow(d[17],2) + std::pow(d[16],2) - 2*d[16]*d[17] + std::pow(d[17],2);
+    coeffs[16] = -2*std::pow(d[1],2)*d[13] + 2*d[1]*d[2]*d[13] - 2*std::pow(d[4],2)*d[13] + 2*d[4]*d[5]*d[13] + 2*d[1]*d[2]*d[14] - 2*std::pow(d[2],2)*d[14] + 2*d[4]*d[5]*d[14] - 2*std::pow(d[5],2)*d[14];
+    coeffs[17] = -std::pow(d[1],2)*std::pow(d[13],2) - std::pow(d[4],2)*std::pow(d[13],2) + 2*d[1]*d[2]*d[13]*d[14] + 2*d[4]*d[5]*d[13]*d[14] - std::pow(d[2],2)*std::pow(d[14],2) - std::pow(d[5],2)*std::pow(d[14],2) - std::pow(d[13],2) + 2*d[13]*d[14] - std::pow(d[14],2);
 
-    static const int coeffs_ind[] = {0, 6,  12, 1,  7,  13, 2, 8,  0,  6, 12, 14, 6,  0,  12, 1,  7,  13,
-                                     3, 9,  2,  8,  14, 15, 4, 10, 7,  1, 16, 13, 8,  2,  6,  12, 0,  14,
-                                     9, 3,  8,  14, 2,  15, 3, 9,  15, 4, 10, 16, 7,  13, 1,  5,  11, 10,
-                                     4, 17, 16, 11, 17, 5,  9, 15, 3,  5, 11, 17, 10, 16, 4,  11, 5,  17};
+    Eigen::MatrixXd C0(6,6);
+    C0 << 0, 0, coeffs[0], coeffs[2], coeffs[3], coeffs[5],
+        0, 0, coeffs[6], coeffs[8], coeffs[9], coeffs[11],
+        0, 0, coeffs[12], coeffs[14], coeffs[15], coeffs[17],
+        coeffs[0], coeffs[5], coeffs[2], coeffs[3], 0, 0,
+        coeffs[6], coeffs[11], coeffs[8], coeffs[9], 0, 0,
+        coeffs[12], coeffs[17], coeffs[14], coeffs[15], 0, 0;
 
-    static const int C_ind[] = {0,   1,   9,   12,  13,  21,  24,  25,  26,  28,  29,  33,  39,  42,  47,
-                                50,  52,  53,  60,  61,  62,  64,  65,  69,  72,  73,  75,  78,  81,  83,
-                                87,  90,  91,  92,  94,  95,  99,  102, 103, 104, 106, 107, 110, 112, 113,
-                                122, 124, 125, 127, 128, 130, 132, 133, 135, 138, 141, 143, 151, 152, 154,
-                                163, 164, 166, 170, 172, 173, 175, 176, 178, 183, 186, 191};
+    Eigen::MatrixXd C2(6,4);
+    C2 << 0, coeffs[1], 0, coeffs[4],
+        0, coeffs[7], 0, coeffs[10],
+        0, coeffs[13], 0, coeffs[16],
+        coeffs[1], 0, coeffs[4], 0,
+        coeffs[7], 0, coeffs[10], 0,
+        coeffs[13], 0, coeffs[16], 0;
 
-    Eigen::MatrixXd C = Eigen::MatrixXd::Zero(12, 16);
-    for (int i = 0; i < 72; i++) {
-        C(C_ind[i]) = coeffs(coeffs_ind[i]);
-    }
+    Eigen::MatrixXd C3 = -C0.partialPivLu().solve(C2);
 
-    Eigen::MatrixXd C0 = C.leftCols(12);
-    Eigen::MatrixXd C1 = C.rightCols(4);
-    Eigen::MatrixXd C12 = C0.partialPivLu().solve(C1);
-    Eigen::MatrixXd RR(7, 4);
-    RR << -C12.bottomRows(3), Eigen::MatrixXd::Identity(4, 4);
+    Eigen::MatrixXd M(4,4);
+    M << 0, 0, 1.0, 0,
+        0, 0, 0, 1.0,
+        C3(1,0), C3(1,1), C3(1,2), C3(1,3),
+        C3(5,0), C3(5,1), C3(5,2), C3(5,3);
 
-    static const int AM_ind[] = {5, 0, 1, 2};
-    Eigen::MatrixXd AM(4, 4);
-    for (int i = 0; i < 4; i++) {
-        AM.row(i) = RR.row(AM_ind[i]);
-    }
 
-    Eigen::EigenSolver<Eigen::MatrixXd> es(AM);
+    Eigen::EigenSolver<Eigen::MatrixXd> es(M);
     Eigen::ArrayXcd D = es.eigenvalues();
     Eigen::ArrayXXcd V = es.eigenvectors();
-    V = (V / V.row(0).replicate(4, 1)).eval();
 
-    Eigen::MatrixXcd sols(3, 4);
-    sols.row(0) = V.row(1);
-    sols.row(1) = D.transpose();
-    sols.row(2) = V.row(3);
+    Eigen::MatrixXd sols(3, 4);
+
+    size_t m = 0;
+    for (size_t k = 0; k < 4; ++k) {
+        if (abs(D(k).imag()) > 0.001 ||
+            abs(V(0, k).imag()) > 0.001 ||
+            abs(V(1, k).imag()) > 0.001)
+            continue;
+
+        sols(1, m) = 1.0 / D(k).real();
+        sols(2, m) = V(0, k).real() / V(1, k).real();
+        sols(0, m) = -(coeffs[1]*sols(1, m)*sols(1, m) + coeffs[4]*sols(1, m) + coeffs[5]) / (coeffs[0]*sols(2, m)*sols(2, m) + coeffs[2]*sols(2, m) + coeffs[3]);
+        ++m;
+    }
+    sols.conservativeResize(3,m);
     return sols;
 }
 int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
@@ -128,7 +99,7 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
     sols = solver_p3p_mono_3d(datain);
 
     size_t num_sols = 0;
-    for (size_t k = 0; k < 4; ++k) {
+    for (int k = 0; k < sols.cols(); ++k) {
 
         if (abs(sols(2, k).imag()) > 0.001 || abs(sols(1, k).imag()) > 0.001 || sols(0, k).real() < 0.0)
             continue;

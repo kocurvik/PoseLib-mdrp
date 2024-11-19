@@ -24,6 +24,9 @@ set(SOURCES
     solvers/relpose_8pt.cc
     solvers/relpose_mono_3pt.cc
     solvers/relpose_reldepth_3pt.cc
+    solvers/shared_focal_monodepth_relpose_eigen.cc
+    solvers/shared_focal_reldepth_relpose.cc
+    solvers/varying_focal_monodepth_relpose.cc
     solvers/relpose_5pt.cc
     solvers/relpose_7pt.cc
     solvers/relpose_6pt_focal.cc
@@ -76,6 +79,9 @@ set(HEADERS_PUBLIC
     solvers/relpose_5pt.h
     solvers/relpose_mono_3pt.h
     solvers/relpose_reldepth_3pt.h
+    solvers/shared_focal_monodepth_relpose_eigen.h
+    solvers/shared_focal_reldepth_relpose.h
+    solvers/varying_focal_monodepth_relpose.h
     solvers/relpose_7pt.h
     solvers/relpose_6pt_focal.h
     solvers/gen_relpose_upright_4pt.h
@@ -89,7 +95,7 @@ set(HEADERS_PUBLIC
     misc/sturm.h
     misc/essential.h
     misc/re3q3.h
-        misc/decompositions.h
+    misc/decompositions.h
     robust.h
     types.h
     camera_pose.h

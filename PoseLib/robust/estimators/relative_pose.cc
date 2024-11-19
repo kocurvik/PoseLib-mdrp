@@ -31,11 +31,15 @@
 #include "PoseLib/misc/essential.h"
 #include "PoseLib/robust/bundle.h"
 #include "PoseLib/solvers/gen_relpose_5p1pt.h"
+#include "PoseLib/solvers/p3p.h"
 #include "PoseLib/solvers/relpose_5pt.h"
 #include "PoseLib/solvers/relpose_6pt_focal.h"
 #include "PoseLib/solvers/relpose_7pt.h"
 #include "PoseLib/solvers/relpose_mono_3pt.h"
 #include "PoseLib/solvers/relpose_reldepth_3pt.h"
+#include "PoseLib/solvers/shared_focal_monodepth_relpose_eigen.h"
+#include "PoseLib/solvers/shared_focal_reldepth_relpose.h"
+#include "PoseLib/solvers/varying_focal_monodepth_relpose.h"
 
 #include <iostream>
 
@@ -132,6 +136,122 @@ void SharedFocalRelativePoseEstimator::refine_model(ImagePair *image_pair) const
     }
 
     refine_shared_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
+}
+
+void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
+    sampler.generate_sample(&sample);
+    for (size_t k = 0; k < sample_sz; ++k) {
+        x1s[k] = x1[sample[k]];
+        x2s[k] = x2[sample[k]];
+        monodepth[k] = sigma[sample[k]];
+    }
+
+    if (opt.use_reldepth) {
+        shared_focal_reldepth_relpose(x1s, x2s, monodepth, models);
+        return;
+    }
+
+    shared_focal_monodepth_relpose(x1s, x2s, monodepth, opt.use_eigen, models);
+}
+
+double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
+    Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair.camera1.focal());
+    Eigen::Matrix3d E;
+    essential_from_motion(image_pair.pose, &E);
+    Eigen::Matrix3d F = K_inv * (E * K_inv);
+
+    return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+}
+
+void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
+    BundleOptions bundle_opt;
+    bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = 25;
+
+    Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair->camera1.focal());
+    Eigen::Matrix3d E;
+    essential_from_motion(image_pair->pose, &E);
+    Eigen::Matrix3d F = K_inv * (E * K_inv);
+
+    // Find approximate inliers and bundle over these with a truncated loss
+    std::vector<char> inliers;
+    int num_inl = get_inliers(F, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
+    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
+    x1_inlier.reserve(num_inl);
+    x2_inlier.reserve(num_inl);
+
+    if (num_inl <= 6) {
+        return;
+    }
+
+    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
+        if (inliers[pt_k]) {
+            x1_inlier.push_back(x1[pt_k]);
+            x2_inlier.push_back(x2[pt_k]);
+        }
+    }
+
+    refine_shared_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
+}
+
+void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
+    sampler.generate_sample(&sample);
+    for (size_t k = 0; k < sample_sz; ++k) {
+        x1s[k] = x1[sample[k]];
+        x2s[k] = x2[sample[k]];
+        monodepth[k] = sigma[sample[k]];
+    }
+
+    if (opt.use_fundamental) {
+        varying_focal_fundamental_relpose(x1s, x2s, models);
+        return;
+    }
+
+    varying_focal_monodepth_relpose(x1s, x2s, monodepth, models);
+}
+
+double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
+    Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, image_pair.camera1.focal()),
+        K2_inv(1.0, 1.0, image_pair.camera2.focal());
+    Eigen::Matrix3d E;
+    essential_from_motion(image_pair.pose, &E);
+    Eigen::Matrix3d F = K2_inv * (E * K1_inv);
+
+    return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+}
+
+void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
+    BundleOptions bundle_opt;
+    bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = 25;
+
+    Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, image_pair->camera1.focal()),
+        K2_inv(1.0, 1.0, image_pair->camera2.focal());
+    Eigen::Matrix3d E;
+    essential_from_motion(image_pair->pose, &E);
+    Eigen::Matrix3d F = K2_inv * (E * K1_inv);
+
+    // Find approximate inliers and bundle over these with a truncated loss
+    std::vector<char> inliers;
+    int num_inl = get_inliers(F, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
+    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
+    x1_inlier.reserve(num_inl);
+    x2_inlier.reserve(num_inl);
+
+    if (num_inl <= 7) {
+        return;
+    }
+
+    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
+        if (inliers[pt_k]) {
+            x1_inlier.push_back(x1[pt_k]);
+            x2_inlier.push_back(x2[pt_k]);
+        }
+    }
+
+    refine_varying_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
 }
 
 void GeneralizedRelativePoseEstimator::generate_models(std::vector<CameraPose> *models) {
@@ -280,15 +400,24 @@ void FundamentalEstimator::refine_model(Eigen::Matrix3d *F) const {
 void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *models) {
     sampler.generate_sample(&sample);
     models->clear();
-    if (opt.use_astermark) {
+    if (opt.use_reldepth) {
         for (size_t k = 0; k < sample_sz; ++k) {
             x1s[k] = x1[sample[k]];
             x2s[k] = x2[sample[k]];
-            rel_depth[k] = mono_depth[sample[k]](1) / mono_depth[sample[k]](2);
+            rel_depth[k] = mono_depth[sample[k]](1) / mono_depth[sample[k]](0);
         }
         essential_3pt_relative_depth(x1s, x2s, rel_depth, models, opt.all_permutations);
         return;
     }
+
+    if (opt.use_p3p) {
+        for (size_t k = 0; k < sample_sz; ++k) {
+            x2n[k] = x2[sample[k]].homogeneous().normalized();
+            X[k] = mono_depth[sample[k]](0) * x1[sample[k]].homogeneous();
+        }
+        p3p(x2n, X, models);
+    }
+
     for (size_t k = 0; k < sample_sz; ++k) {
         x1s[k] = x1[sample[k]];
         x2s[k] = x2[sample[k]];

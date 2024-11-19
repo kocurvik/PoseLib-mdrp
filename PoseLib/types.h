@@ -52,7 +52,10 @@ struct RansacOptions {
     bool real_focal_check = false;
     int lo_iterations = 25;
     bool all_permutations = false;
-    bool use_astermark = false;
+    bool use_reldepth = false;
+    bool use_p3p = false;
+    bool use_eigen = false;
+    bool use_fundamental = false;
 };
 
 struct RansacStats {
