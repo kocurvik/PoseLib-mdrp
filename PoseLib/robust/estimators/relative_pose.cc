@@ -431,15 +431,15 @@ double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    if (graduated_optimization and opt.lo_iterations > 0) {
-        bundle_opt.max_iterations = 5;
-        for (size_t k = 0; k < graduated_steps; ++k) {
-            double factor = (graduated_steps - k) / static_cast<double>(graduated_steps);
-            double tol = opt.max_epipolar_error * graduated_max * factor;
-            bundle_opt.loss_scale = tol;
-            refine_relpose(x1, x2, pose, bundle_opt);
-        }
-    }
+//    if (graduated_optimization and opt.lo_iterations > 0) {
+//        bundle_opt.max_iterations = 5;
+//        for (size_t k = 0; k < graduated_steps; ++k) {
+//            double factor = (graduated_steps - k) / static_cast<double>(graduated_steps);
+//            double tol = opt.max_epipolar_error * graduated_max * factor;
+//            bundle_opt.loss_scale = tol;
+//            refine_relpose(x1, x2, pose, bundle_opt);
+//        }
+//    }
     bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
     refine_relpose(x1, x2, pose, bundle_opt);
