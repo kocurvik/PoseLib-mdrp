@@ -529,6 +529,8 @@ estimate_shared_focal_monodepth_relative_pose_wrapper(const std::vector<Eigen::V
                                             const Eigen::Vector2d &pp,
                                             const py::dict &ransac_opt_dict, const py::dict &bundle_opt_dict) {
 
+    std::cout << "Pyposelib C1" << std::endl;
+
     RansacOptions ransac_opt;
     update_ransac_options(ransac_opt_dict, ransac_opt);
 
@@ -539,13 +541,18 @@ estimate_shared_focal_monodepth_relative_pose_wrapper(const std::vector<Eigen::V
     ImagePair image_pair;
     std::vector<char> inlier_mask;
 
+    std::cout << "Pyposelib C2" << std::endl;
+
     std::vector<Image> output;
     RansacStats stats = estimate_shared_focal_monodepth_relative_pose(points2D_1, points2D_2, sigma, pp, ransac_opt,
                                                                       bundle_opt, &image_pair, &inlier_mask);
 
+    std::cout << "Pyposelib C3" << std::endl;
+
     py::dict output_dict;
     write_to_dict(stats, output_dict);
     output_dict["inliers"] = convert_inlier_vector(inlier_mask);
+    std::cout << "Pyposelib C4" << std::endl;
     return std::make_pair(image_pair, output_dict);
 }
 
