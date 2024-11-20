@@ -267,7 +267,7 @@ RansacStats estimate_relative_pose_w_mono_depth(
 }
 
 RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &points2D_1,
-                                                const std::vector<Point2D> &points2D_2, const Point2D &pp,
+                                                const std::vector<Point2D> &points2D_2,
                                                 const RansacOptions &ransac_opt, const BundleOptions &bundle_opt,
                                                 ImagePair *image_pair, std::vector<char> *inliers) {
 
@@ -277,10 +277,10 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
     std::vector<Point2D> x1_norm = points2D_1;
     std::vector<Point2D> x2_norm = points2D_2;
 
-    for (size_t i = 0; i < x1_norm.size(); i++) {
-        x1_norm[i] -= pp;
-        x2_norm[i] -= pp;
-    }
+//    for (size_t i = 0; i < x1_norm.size(); i++) {
+//        x1_norm[i] -= pp;
+//        x2_norm[i] -= pp;
+//    }
 
     // We normalize points here to improve conditioning. Note that the normalization
     // only ammounts to a uniform rescaling of the image coordinate system
@@ -312,8 +312,8 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
     }
 
     image_pair->camera1.params[0] *= scale;
-    image_pair->camera1.params[1] = pp(0);
-    image_pair->camera1.params[2] = pp(1);
+    image_pair->camera1.params[1] = 0;
+    image_pair->camera1.params[2] = 0;
 
     image_pair->camera2 = image_pair->camera1;
 
@@ -322,7 +322,7 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
 
 RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Point2D> &points2D_1,
                                                           const std::vector<Point2D> &points2D_2,
-                                                          const std::vector<Point2D> &sigma, const Point2D &pp,
+                                                          const std::vector<Point2D> &sigma,
                                                           const RansacOptions &ransac_opt,
                                                           const BundleOptions &bundle_opt,
                                                           ImagePair *image_pair, std::vector<char> *inliers) {
@@ -333,10 +333,10 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
     std::vector<Point2D> x1_norm = points2D_1;
     std::vector<Point2D> x2_norm = points2D_2;
 
-    for (size_t i = 0; i < x1_norm.size(); i++) {
-        x1_norm[i] -= pp;
-        x2_norm[i] -= pp;
-    }
+//    for (size_t i = 0; i < x1_norm.size(); i++) {
+//        x1_norm[i] -= pp;
+//        x2_norm[i] -= pp;
+//    }
 
     // We normalize points here to improve conditioning. Note that the normalization
     // only ammounts to a uniform rescaling of the image coordinate system
@@ -368,8 +368,8 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
     }
 
     image_pair->camera1.params[0] *= scale;
-    image_pair->camera1.params[1] = pp(0);
-    image_pair->camera1.params[2] = pp(1);
+    image_pair->camera1.params[1] = 0; // pp(0);
+    image_pair->camera1.params[2] = 0; // pp(1);
 
     image_pair->camera2 = image_pair->camera1;
 
