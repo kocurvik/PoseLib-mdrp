@@ -416,6 +416,7 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
             X[k] = mono_depth[sample[k]](0) * x1[sample[k]].homogeneous();
         }
         p3p(x2n, X, models);
+        return;
     }
 
     for (size_t k = 0; k < sample_sz; ++k) {
