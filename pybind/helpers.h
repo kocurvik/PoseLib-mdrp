@@ -43,6 +43,7 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "use_p3p", ransac_opt.use_p3p);
     update(input, "use_eigen", ransac_opt.use_eigen);
     update(input, "use_fundamental", ransac_opt.use_fundamental);
+    update(input, "use_4p4d", ransac_opt.use_4p4d);
     update(input, "all_permutations", ransac_opt.all_permutations);
 }
 
@@ -89,6 +90,7 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["use_p3p"] = ransac_opt.use_p3p;
     dict["use_eigen"] = ransac_opt.use_eigen;
     dict["use_fundamental"] = ransac_opt.use_fundamental;
+    dict["use_4p4d"] = ransac_opt.use_4p4d;
     dict["all_permutations"] = ransac_opt.all_permutations;
 }
 

@@ -208,7 +208,12 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
         return;
     }
 
-    varying_focal_monodepth_relpose(x1s, x2s, monodepth, models);
+    if (opt.use_4p4d) {
+        varying_focal_monodepth_relpose(x1s, x2s, monodepth, models);
+        return;
+    }
+
+    varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
 }
 
 double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {

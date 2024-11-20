@@ -329,10 +329,6 @@ void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, cons
         Eigen::Vector3d trans2 = s * (depth2[0] + v) * Kinv * x2h[0];
         Eigen::Vector3d trans = trans2 - trans1;
 
-        Eigen::Matrix3d TX;
-        TX << 0, -trans(2), trans(1), trans(2), 0, -trans(0), -trans(1), trans(0), 0;
-
-        Eigen::Matrix3d F1;
         CameraPose pose = CameraPose(rot, trans);
         Camera camera = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
         models->emplace_back(pose, camera, camera);

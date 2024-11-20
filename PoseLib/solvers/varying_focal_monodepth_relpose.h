@@ -15,6 +15,10 @@ void varying_focal_fundamental_relpose(const std::vector<Eigen::Vector2d> &x1, c
 
 void varying_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                      const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models);
+
+void varying_focal_monodepth_relpose_ours(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                                          const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,
+                                          std::vector<ImagePair> *models);
 }
 
 #endif // POSELIB_VARYING_FOCAL_MONODEPTH_RELPOSE_H
