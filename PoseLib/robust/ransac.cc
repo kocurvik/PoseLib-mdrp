@@ -119,7 +119,7 @@ RansacStats ransac_shared_focal_relpose(const std::vector<Point2D> &x1, const st
     best_model->pose.q << 1.0, 0.0, 0.0, 0.0;
     best_model->pose.t.setZero();
     best_model->camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{1.0, 0.0, 0.0}, -1, -1);
-    best_model->camera2 = best_model->camera2;
+    best_model->camera2 = best_model->camera1;
     SharedFocalRelativePoseEstimator estimator(opt, x1, x2);
     RansacStats stats = ransac<SharedFocalRelativePoseEstimator>(estimator, opt, best_model);
 
@@ -140,7 +140,7 @@ RansacStats ransac_shared_focal_monodepth_relpose(const std::vector<Point2D> &x1
     best_model->pose.q << 1.0, 0.0, 0.0, 0.0;
     best_model->pose.t.setZero();
     best_model->camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{1.0, 0.0, 0.0}, -1, -1);
-    best_model->camera2 = best_model->camera2;
+    best_model->camera2 = best_model->camera1;
     SharedFocalMonodepthRelativePoseEstimator estimator(opt, x1, x2, sigma);
     RansacStats stats = ransac<SharedFocalMonodepthRelativePoseEstimator>(estimator, opt, best_model);
 
@@ -161,7 +161,7 @@ RansacStats ransac_varying_focal_monodepth_relpose(const std::vector<Point2D> &x
     best_model->pose.q << 1.0, 0.0, 0.0, 0.0;
     best_model->pose.t.setZero();
     best_model->camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{1.0, 0.0, 0.0}, -1, -1);
-    best_model->camera2 = best_model->camera2;
+    best_model->camera2 = best_model->camera1;
     VaryingFocalMonodepthRelativePoseEstimator estimator(opt, x1, x2, sigma);
     RansacStats stats = ransac<VaryingFocalMonodepthRelativePoseEstimator>(estimator, opt, best_model);
 
