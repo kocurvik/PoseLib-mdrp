@@ -57,6 +57,7 @@ struct RansacOptions {
     bool use_eigen = false;
     bool use_fundamental = false;
     bool use_4p4d = false;
+    bool no_normalization = false;
     int graduated_steps = 0;
 };
 

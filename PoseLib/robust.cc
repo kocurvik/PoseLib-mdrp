@@ -286,7 +286,10 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
     // only ammounts to a uniform rescaling of the image coordinate system
     // and the cost we minimize is equivalent to the cost in the original image
     // We do not perform shifting as we require pp to remain at [0, 0]
-    double scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    double scale = 1.0;
+    if (!ransac_opt.no_normalization){
+        scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    }
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
@@ -342,7 +345,10 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
     // only ammounts to a uniform rescaling of the image coordinate system
     // and the cost we minimize is equivalent to the cost in the original image
     // We do not perform shifting as we require pp to remain at [0, 0]
-    double scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    double scale = 1.0;
+    if (!ransac_opt.no_normalization){
+        scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    }
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
@@ -393,7 +399,10 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
     // only ammounts to a uniform rescaling of the image coordinate system
     // and the cost we minimize is equivalent to the cost in the original image
     // We do not perform shifting as we require pp to remain at [0, 0]
-    double scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    double scale = 1.0;
+    if (!ransac_opt.no_normalization){
+        scale = normalize_points(x1_norm, x2_norm, T1, T2, true, false, true);
+    }
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
