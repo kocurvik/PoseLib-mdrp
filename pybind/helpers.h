@@ -45,6 +45,7 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "use_fundamental", ransac_opt.use_fundamental);
     update(input, "use_4p4d", ransac_opt.use_4p4d);
     update(input, "all_permutations", ransac_opt.all_permutations);
+    update(input, "graduated_steps", ransac_opt.graduated_steps);
 }
 
 void update_bundle_options(const py::dict &input, BundleOptions &bundle_opt) {
@@ -92,6 +93,7 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["use_fundamental"] = ransac_opt.use_fundamental;
     dict["use_4p4d"] = ransac_opt.use_4p4d;
     dict["all_permutations"] = ransac_opt.all_permutations;
+    dict["graduated_steps"] = ransac_opt.graduated_steps;
 }
 
 void write_to_dict(const BundleOptions &bundle_opt, py::dict &dict) {

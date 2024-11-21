@@ -59,29 +59,24 @@ double RelativePoseEstimator::score_model(const CameraPose &pose, size_t *inlier
 }
 
 void RelativePoseEstimator::refine_model(CameraPose *pose) const {
+    if(opt.lo_iterations == 0)
+        return;
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = opt.lo_iterations;
-
-    // Find approximate inliers and bundle over these with a truncated loss
-    std::vector<char> inliers;
-    int num_inl = get_inliers(*pose, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
-    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    x1_inlier.reserve(num_inl);
-    x2_inlier.reserve(num_inl);
-
-    if (num_inl <= 5) {
-        return;
-    }
-
-    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-        if (inliers[pt_k]) {
-            x1_inlier.push_back(x1[pt_k]);
-            x2_inlier.push_back(x2[pt_k]);
+    if (opt.graduated_steps > 0){
+        bundle_opt.max_iterations = 5;
+        for (int k = 0; k < opt.graduated_steps; ++k) {
+            double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
+            double tol = opt.max_epipolar_error * 8.0 * factor;
+            bundle_opt.loss_scale = tol;
+            refine_relpose(x1, x2, pose, bundle_opt);
         }
     }
-    refine_relpose(x1_inlier, x2_inlier, pose, bundle_opt);
+
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = opt.lo_iterations;
+    refine_relpose(x1, x2, pose, bundle_opt);
 }
 
 void SharedFocalRelativePoseEstimator::generate_models(ImagePairVector *models) {
@@ -105,37 +100,24 @@ double SharedFocalRelativePoseEstimator::score_model(const ImagePair &image_pair
 }
 
 void SharedFocalRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
+    if (opt.lo_iterations == 0)
+        return;
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = 25;
-
-    Eigen::Matrix3d K_inv;
-    // K_inv << 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, calib_pose->camera.focal();
-    K_inv << 1.0 / image_pair->camera1.focal(), 0.0, 0.0, 0.0, 1.0 / image_pair->camera1.focal(), 0.0, 0.0, 0.0, 1.0;
-    Eigen::Matrix3d E;
-    essential_from_motion(image_pair->pose, &E);
-    Eigen::Matrix3d F = K_inv * (E * K_inv);
-
-    // Find approximate inliers and bundle over these with a truncated loss
-    std::vector<char> inliers;
-    int num_inl = get_inliers(F, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
-    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    x1_inlier.reserve(num_inl);
-    x2_inlier.reserve(num_inl);
-
-    if (num_inl <= 6) {
-        return;
-    }
-
-    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-        if (inliers[pt_k]) {
-            x1_inlier.push_back(x1[pt_k]);
-            x2_inlier.push_back(x2[pt_k]);
+    if (opt.graduated_steps > 0){
+        bundle_opt.max_iterations = 5;
+        for (int k = 0; k < opt.graduated_steps; ++k) {
+            double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
+            double tol = opt.max_epipolar_error * 8.0 * factor;
+            bundle_opt.loss_scale = tol;
+            refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
         }
     }
 
-    refine_shared_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = opt.lo_iterations;
+    refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
 }
 
 void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
@@ -164,35 +146,24 @@ double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &i
 }
 
 void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
+    if (opt.lo_iterations == 0)
+        return;
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = 25;
-
-    Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair->camera1.focal());
-    Eigen::Matrix3d E;
-    essential_from_motion(image_pair->pose, &E);
-    Eigen::Matrix3d F = K_inv * (E * K_inv);
-
-    // Find approximate inliers and bundle over these with a truncated loss
-    std::vector<char> inliers;
-    int num_inl = get_inliers(F, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
-    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    x1_inlier.reserve(num_inl);
-    x2_inlier.reserve(num_inl);
-
-    if (num_inl <= 6) {
-        return;
-    }
-
-    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-        if (inliers[pt_k]) {
-            x1_inlier.push_back(x1[pt_k]);
-            x2_inlier.push_back(x2[pt_k]);
+    if (opt.graduated_steps > 0){
+        bundle_opt.max_iterations = 5;
+        for (int k = 0; k < opt.graduated_steps; ++k) {
+            double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
+            double tol = opt.max_epipolar_error * 8.0 * factor;
+            bundle_opt.loss_scale = tol;
+            refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
         }
     }
 
-    refine_shared_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = opt.lo_iterations;
+    refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
 }
 
 void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
@@ -227,36 +198,24 @@ double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &
 }
 
 void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
+    if(opt.lo_iterations == 0)
+        return;
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-    bundle_opt.loss_scale = opt.max_epipolar_error;
-    bundle_opt.max_iterations = 25;
-
-    Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, image_pair->camera1.focal()),
-        K2_inv(1.0, 1.0, image_pair->camera2.focal());
-    Eigen::Matrix3d E;
-    essential_from_motion(image_pair->pose, &E);
-    Eigen::Matrix3d F = K2_inv * (E * K1_inv);
-
-    // Find approximate inliers and bundle over these with a truncated loss
-    std::vector<char> inliers;
-    int num_inl = get_inliers(F, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
-    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    x1_inlier.reserve(num_inl);
-    x2_inlier.reserve(num_inl);
-
-    if (num_inl <= 7) {
-        return;
-    }
-
-    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-        if (inliers[pt_k]) {
-            x1_inlier.push_back(x1[pt_k]);
-            x2_inlier.push_back(x2[pt_k]);
+    if (opt.graduated_steps > 0){
+        bundle_opt.max_iterations = 5;
+        for (int k = 0; k < opt.graduated_steps; ++k) {
+            double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
+            double tol = opt.max_epipolar_error * 8.0 * factor;
+            bundle_opt.loss_scale = tol;
+            refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
         }
     }
 
-    refine_varying_focal_relpose(x1_inlier, x2_inlier, image_pair, bundle_opt);
+    bundle_opt.loss_scale = opt.max_epipolar_error;
+    bundle_opt.max_iterations = opt.lo_iterations;
+    refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
 }
 
 void GeneralizedRelativePoseEstimator::generate_models(std::vector<CameraPose> *models) {
@@ -435,21 +394,23 @@ double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_
     return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
 }
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
+    if(opt.lo_iterations == 0)
+        return;
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-//    if (graduated_optimization and opt.lo_iterations > 0) {
-//        bundle_opt.max_iterations = 5;
-//        for (size_t k = 0; k < graduated_steps; ++k) {
-//            double factor = (graduated_steps - k) / static_cast<double>(graduated_steps);
-//            double tol = opt.max_epipolar_error * graduated_max * factor;
-//            bundle_opt.loss_scale = tol;
-//            refine_relpose(x1, x2, pose, bundle_opt);
-//        }
-//    }
+    if (opt.graduated_steps > 0){
+        bundle_opt.max_iterations = 5;
+        for (int k = 0; k < opt.graduated_steps; ++k) {
+            double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
+            double tol = opt.max_epipolar_error * 8.0 * factor;
+            bundle_opt.loss_scale = tol;
+            refine_relpose(x1, x2, pose, bundle_opt);
+        }
+    }
+
     bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
     refine_relpose(x1, x2, pose, bundle_opt);
 }
-
-
 } // namespace poselib
