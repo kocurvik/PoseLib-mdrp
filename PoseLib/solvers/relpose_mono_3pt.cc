@@ -1,9 +1,9 @@
 #include "relpose_mono_3pt.h"
-
 #include "PoseLib/misc/univariate.h"
+#include <iostream>
 namespace poselib {
 
-Eigen::MatrixXcd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
+Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
     // Action =  y
     // Quotient ring basis (V) = 1,x,y,z,
     // Available monomials (RR*V) = x*y,y^2,y*z,1,x,y,z,
@@ -29,50 +29,44 @@ Eigen::MatrixXcd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
     coeffs[16] = -2*std::pow(d[1],2)*d[13] + 2*d[1]*d[2]*d[13] - 2*std::pow(d[4],2)*d[13] + 2*d[4]*d[5]*d[13] + 2*d[1]*d[2]*d[14] - 2*std::pow(d[2],2)*d[14] + 2*d[4]*d[5]*d[14] - 2*std::pow(d[5],2)*d[14];
     coeffs[17] = -std::pow(d[1],2)*std::pow(d[13],2) - std::pow(d[4],2)*std::pow(d[13],2) + 2*d[1]*d[2]*d[13]*d[14] + 2*d[4]*d[5]*d[13]*d[14] - std::pow(d[2],2)*std::pow(d[14],2) - std::pow(d[5],2)*std::pow(d[14],2) - std::pow(d[13],2) + 2*d[13]*d[14] - std::pow(d[14],2);
 
-    Eigen::MatrixXd C0(6,6);
-    C0 << 0, 0, coeffs[0], coeffs[2], coeffs[3], coeffs[5],
-        0, 0, coeffs[6], coeffs[8], coeffs[9], coeffs[11],
-        0, 0, coeffs[12], coeffs[14], coeffs[15], coeffs[17],
-        coeffs[0], coeffs[5], coeffs[2], coeffs[3], 0, 0,
-        coeffs[6], coeffs[11], coeffs[8], coeffs[9], 0, 0,
-        coeffs[12], coeffs[17], coeffs[14], coeffs[15], 0, 0;
+    Eigen::MatrixXd C0(3,3);
+    C0 << coeffs[0], coeffs[2], coeffs[3],
+        coeffs[6], coeffs[8], coeffs[9],
+        coeffs[12], coeffs[14], coeffs[15];
 
-    Eigen::MatrixXd C2(6,4);
-    C2 << 0, coeffs[1], 0, coeffs[4],
-        0, coeffs[7], 0, coeffs[10],
-        0, coeffs[13], 0, coeffs[16],
-        coeffs[1], 0, coeffs[4], 0,
-        coeffs[7], 0, coeffs[10], 0,
-        coeffs[13], 0, coeffs[16], 0;
+    Eigen::MatrixXd C1(3,3);
+    C1 << coeffs[1], coeffs[4], coeffs[5],
+        coeffs[7], coeffs[10], coeffs[11],
+        coeffs[13], coeffs[16], coeffs[17];
 
-    Eigen::MatrixXd C3 = -C0.partialPivLu().solve(C2);
+    Eigen::MatrixXd C2 = -C0.partialPivLu().solve(C1);
 
-    Eigen::MatrixXd M(4,4);
-    M << 0, 0, 1.0, 0,
-        0, 0, 0, 1.0,
-        C3(1,0), C3(1,1), C3(1,2), C3(1,3),
-        C3(5,0), C3(5,1), C3(5,2), C3(5,3);
+    double k0 = C2(0,0);
+    double k1 = C2(0,1);
+    double k2 = C2(0,2);
+    double k3 = C2(1,0);
+    double k4 = C2(1,1);
+    double k5 = C2(1,2);
+    double k6 = C2(2,0);
+    double k7 = C2(2,1);
+    double k8 = C2(2,2);
 
+    double c4 = 1.0 / (k3*k3 - k0*k6);
+    double c3 = c4 * (2*k3*k4 - k1*k6 - k0*k7);
+    double c2 = c4 * (k4*k4 - k0*k8 - k1*k7 - k2*k6 + 2*k3*k5);
+    double c1 = c4 * (2*k4*k5 - k2*k7 - k1*k8);
+    double c0 = c4 * (k5*k5 - k2*k8);
 
-    Eigen::EigenSolver<Eigen::MatrixXd> es(M);
-    Eigen::ArrayXcd D = es.eigenvalues();
-    Eigen::ArrayXXcd V = es.eigenvectors();
+    double roots[4];
+    int m = univariate::solve_quartic_real(c3, c2, c1, c0, roots);
 
-    Eigen::MatrixXd sols(3, 4);
-
-    size_t m = 0;
-    for (size_t k = 0; k < 4; ++k) {
-        if (abs(D(k).imag()) > 0.001 ||
-            abs(V(0, k).imag()) > 0.001 ||
-            abs(V(1, k).imag()) > 0.001)
-            continue;
-
-        sols(1, m) = 1.0 / D(k).real();
-        sols(2, m) = V(0, k).real() / V(1, k).real();
-        sols(0, m) = -(coeffs[1]*sols(1, m)*sols(1, m) + coeffs[4]*sols(1, m) + coeffs[5]) / (coeffs[0]*sols(2, m)*sols(2, m) + coeffs[2]*sols(2, m) + coeffs[3]);
-        ++m;
+    Eigen::MatrixXd sols(3, m);
+    for (int ii = 0; ii < m; ii++)
+    {
+        sols(1,ii) = roots[ii];
+        sols(0,ii) = k6*roots[ii]*roots[ii] + k7*roots[ii] + k8;
+        sols(2,ii) = (k3*roots[ii]*roots[ii] + k4*roots[ii] + k5)/sols(0,ii);
     }
-    sols.conservativeResize(3,m);
     return sols;
 }
 int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
@@ -95,18 +89,14 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
     datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
         x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
 
-    Eigen::MatrixXcd sols(3, 4);
-    sols = solver_p3p_mono_3d(datain);
+    Eigen::MatrixXd sols = solver_p3p_mono_3d(datain);
 
     size_t num_sols = 0;
     for (int k = 0; k < sols.cols(); ++k) {
 
-        if (abs(sols(2, k).imag()) > 0.001 || abs(sols(1, k).imag()) > 0.001 || sols(0, k).real() < 0.0)
-            continue;
-
-        double s = std::sqrt(sols(0, k).real());
-        double u = sols(1, k).real();
-        double v = sols(2, k).real();
+        double s = std::sqrt(sols(0, k));
+        double u = sols(1, k);
+        double v = sols(2, k);
 
         Eigen::Vector3d v1 = s * (depth2[0] + v) * x2h[0] - s * (depth2[1] + v) * x2h[1];
         Eigen::Vector3d v2 = s * (depth2[0] + v) * x2h[0] - s * (depth2[2] + v) * x2h[2];
@@ -120,18 +110,6 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
-
-        // Eigen::Vector3d trans1 = (depth1[0] + u) * rot * x1h[0];
-        // Eigen::Vector3d trans2 = s * (depth2[0] + v) * x2h[0];
-        // Eigen::Vector3d trans = trans2 - trans1;
-        // Eigen::Vector3d trans = sigma[0] * x2h[0].homogeneous() - rot * x1h[0].homogeneous();
-        // Eigen::Matrix3d TX;
-        // TX << 0, -trans(2), trans(1),
-        //     trans(2), 0, -trans(0),
-        //     -trans(1), trans(0), 0;
-
-        // Eigen::Matrix<double, 3, 3> Ess;
-        // Ess = TX * rot;
 
         CameraPose pose;
         Eigen::Quaterniond q_flip(rot);
