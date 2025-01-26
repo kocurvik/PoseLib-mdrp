@@ -411,6 +411,25 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
 
     bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
+
+    std::vector<char> inliers;
+    int num_inl = get_inliers(*pose, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
+
+    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
+    x1_inlier.reserve(num_inl);
+    x2_inlier.reserve(num_inl);
+
+    if (num_inl <= 5) {
+        return;
+    }
+
+    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
+        if (inliers[pt_k]) {
+            x1_inlier.push_back(x1[pt_k]);
+            x2_inlier.push_back(x2[pt_k]);
+        }
+    }
+
     refine_relpose(x1, x2, pose, bundle_opt);
 }
 } // namespace poselib
