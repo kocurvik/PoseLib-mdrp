@@ -380,15 +380,21 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
             X[k] = mono_depth[sample[k]](0) * x1[sample[k]].homogeneous();
         }
         p3p(x2n, X, models);
+        if (not opt.use_monodepth)
+            return;
+    }
+
+    if (opt.use_monodepth) {
+        for (size_t k = 0; k < sample_sz; ++k) {
+            x1s[k] = x1[sample[k]];
+            x2s[k] = x2[sample[k]];
+            sigmas[k] = mono_depth[sample[k]];
+        }
+        essential_3pt_mono_depth(x1s, x2s, sigmas, models);
         return;
     }
 
-    for (size_t k = 0; k < sample_sz; ++k) {
-        x1s[k] = x1[sample[k]];
-        x2s[k] = x2[sample[k]];
-        sigmas[k] = mono_depth[sample[k]];
-    }
-    essential_3pt_mono_depth(x1s, x2s, sigmas, models);
+    throw std::runtime_error("No solver called");
 }
 double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
     return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);

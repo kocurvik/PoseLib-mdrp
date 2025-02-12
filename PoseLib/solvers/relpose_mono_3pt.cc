@@ -142,7 +142,7 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
 }
 int essential_3pt_mono_depth(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                              const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose) {
-    rel_pose->clear();
+    rel_pose->reserve(rel_pose->size() + 4);
     essential_3pt_mono_depth_impl(x1, x2, sigma, rel_pose);
 
     return rel_pose->size();
