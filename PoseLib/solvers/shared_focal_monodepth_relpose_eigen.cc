@@ -274,29 +274,9 @@ Eigen::MatrixXd shared_focal_monodepth_relpose_eigen_impl(Eigen::VectorXd d) {
     return sols;
 }
 
-void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                    const std::vector<Eigen::Vector2d> &sigma,
-                                    std::vector<ImagePair> *models, const RansacOptions &opt) {
-    models->clear();
-    models->reserve(2);
-    std::vector<Eigen::Vector3d> x1h(3);
-    std::vector<Eigen::Vector3d> x2h(3);
-    for (int i = 0; i < 3; ++i) {
-        x1h[i] = x1[i].homogeneous();
-        x2h[i] = x2[i].homogeneous();
-    }
-
-    double depth1[3];
-    double depth2[3];
-    for (int i = 0; i < 3; ++i) {
-        depth1[i] = sigma[i][0];
-        depth2[i] = sigma[i][1];
-    }
-
-//    Eigen::VectorXd datain(18);
-//    datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
-//        x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
-
+void shared_focal_abspose_single_perm(const std::vector<Eigen::Vector3d> &x1h, const std::vector<Eigen::Vector3d> &x2h,
+                                      const std::vector<double> &depth1, const std::vector<double> &depth2,
+                                      std::vector<ImagePair> *models) {
     Eigen::Vector3d X101 = depth1[0] * x1h[0] - depth1[1] * x1h[1];
     Eigen::Vector3d X201 = depth2[0] * x2h[0] - depth2[1] * x2h[1];
 
@@ -304,7 +284,7 @@ void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, cons
                 (X201(2) * X201(2) - X101(2) * X101(2));
 
     if (f2 > 0) {
-        double f = std::sqrt(f2);
+        double f = sqrt(f2);
 
         // if (f > 4.0 || f < 0.2)
         //     f = 1.2;
@@ -352,9 +332,9 @@ void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, cons
 
             Eigen::Matrix3d rot = Y * X;
             // if rot is less than 5 deg
-//            if ((rot.trace() - 1) > 1.99238939618)
-//                if (f < opt.min_focal_1 or f > opt.max_focal_1)
-//                    continue;
+            //            if ((rot.trace() - 1) > 1.99238939618)
+            //                if (f < opt.min_focal_1 or f > opt.max_focal_1)
+            //                    continue;
 
             Eigen::Vector3d trans = X20 - rot * X10;
 
@@ -364,6 +344,52 @@ void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, cons
         }
     }
 }
+
+
+void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                                    const std::vector<Eigen::Vector2d> &sigma,
+                                    std::vector<ImagePair> *models, const RansacOptions &opt) {
+    models->clear();
+    if (opt.all_permutations)
+        models->reserve(6);
+    else
+        models->reserve(2);
+
+    std::vector<Eigen::Vector3d> x1h(3);
+    std::vector<Eigen::Vector3d> x2h(3);
+    for (int i = 0; i < 3; ++i) {
+        x1h[i] = x1[i].homogeneous();
+        x2h[i] = x2[i].homogeneous();
+    }
+
+    std::vector<double> depth1(3);
+    std::vector<double> depth2(3);
+    for (int i = 0; i < 3; ++i) {
+        depth1[i] = sigma[i][0];
+        depth2[i] = sigma[i][1];
+    }
+
+//    Eigen::VectorXd datain(18);
+//    datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
+//        x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
+
+    shared_focal_abspose_single_perm(x1h, x2h, depth1, depth2, models);
+
+    if (opt.all_permutations){
+        std::swap(x1h[1], x1h[2]);
+        std::swap(x2h[1], x2h[2]);
+        std::swap(depth1[1], depth1[2]);
+        std::swap(depth2[1], depth2[2]);
+        shared_focal_abspose_single_perm(x1h, x2h, depth1, depth2, models);
+
+        std::swap(x1h[0], x1h[2]);
+        std::swap(x2h[0], x2h[2]);
+        std::swap(depth1[0], depth1[2]);
+        std::swap(depth2[0], depth2[2]);
+        shared_focal_abspose_single_perm(x1h, x2h, depth1, depth2, models);
+    }
+}
+
 
 void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                     const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,

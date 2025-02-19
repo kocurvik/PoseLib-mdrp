@@ -152,7 +152,7 @@ RansacStats ransac_shared_focal_monodepth_relpose(const std::vector<Point2D> &x1
         }
 
         get_inliers(best_model->pose, best_model->camera1.focal(), x2, X,
-                    opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
+                    opt.max_reproj_error * opt.max_reproj_error, best_inliers);
     } else {
         Eigen::Matrix3d K_inv;
         K_inv << 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, best_model->camera1.focal();
@@ -184,7 +184,7 @@ RansacStats ransac_varying_focal_monodepth_relpose(const std::vector<Point2D> &x
         }
 
         get_inliers(best_model->pose, best_model->camera2.focal(), x2, X,
-                    opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
+                    opt.max_reproj_error * opt.max_reproj_error, best_inliers);
     } else {
         Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, best_model->camera1.focal()),
             K2_inv(1.0, 1.0, best_model->camera2.focal());
