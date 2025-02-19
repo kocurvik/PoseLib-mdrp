@@ -80,7 +80,7 @@ void varying_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, con
     {
         double u11 = x1[i](0), v11 = x1[i](1), u12 = x2[i](0), v12 = x2[i](1);
         double q1 = sigma[i](0), q2 = sigma[i](1);
-        double q = q1 / q2;
+        double q = q2 / q1;
 
         coefficients(row, 0) = -u11;
         coefficients(row, 1) = -v11;
