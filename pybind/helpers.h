@@ -43,11 +43,16 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "use_p3p", ransac_opt.use_p3p);
     update(input, "use_monodepth", ransac_opt.use_monodepth);
     update(input, "use_eigen", ransac_opt.use_eigen);
+    update(input, "use_reproj", ransac_opt.use_reproj);
     update(input, "use_fundamental", ransac_opt.use_fundamental);
     update(input, "use_4p4d", ransac_opt.use_4p4d);
     update(input, "all_permutations", ransac_opt.all_permutations);
     update(input, "no_normalization", ransac_opt.no_normalization);
     update(input, "graduated_steps", ransac_opt.graduated_steps);
+    update(input, "max_focal_1", ransac_opt.max_focal_1);
+    update(input, "min_focal_1", ransac_opt.min_focal_1);
+    update(input, "max_focal_2", ransac_opt.max_focal_2);
+    update(input, "min_focal_2", ransac_opt.min_focal_2);
 }
 
 void update_bundle_options(const py::dict &input, BundleOptions &bundle_opt) {
@@ -91,6 +96,7 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["lo_iterations"] = ransac_opt.lo_iterations;
     dict["use_reldepth"] = ransac_opt.use_reldepth;
     dict["use_p3p"] = ransac_opt.use_p3p;
+    dict["use_reproj"] = ransac_opt.use_reproj;
     dict["use_monodepth"] = ransac_opt.use_monodepth;
     dict["use_eigen"] = ransac_opt.use_eigen;
     dict["use_fundamental"] = ransac_opt.use_fundamental;
@@ -98,6 +104,10 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["all_permutations"] = ransac_opt.all_permutations;
     dict["no_normalizatoin"] = ransac_opt.no_normalization;
     dict["graduated_steps"] = ransac_opt.graduated_steps;
+    dict["min_focal_1"] = ransac_opt.min_focal_1;
+    dict["max_focal_1"] = ransac_opt.max_focal_1;
+    dict["min_focal_2"] = ransac_opt.min_focal_2;
+    dict["max_focal_2"] = ransac_opt.max_focal_2;
 }
 
 void write_to_dict(const BundleOptions &bundle_opt, py::dict &dict) {

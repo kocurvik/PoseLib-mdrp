@@ -92,6 +92,15 @@ BundleStats refine_relpose(const std::vector<Point2D> &x1, const std::vector<Poi
 BundleStats refine_shared_focal_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                         ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
                                         const std::vector<double> &weights = std::vector<double>());
+// Use reproj error for monodepth solvers
+BundleStats refine_shared_focal_abspose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
+                                        const std::vector<double> &weights = std::vector<double>());
+BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                         const std::vector<Point2D> &sigma,
+                                         ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
+                                         const std::vector<double> &weights = std::vector<double>());
 
 BundleStats refine_varying_focal_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                          ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),

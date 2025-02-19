@@ -3,6 +3,8 @@
 //
 
 #include "shared_focal_monodepth_relpose_eigen.h"
+
+#include "PoseLib/misc/univariate.h"
 namespace poselib {
 
 Eigen::MatrixXd shared_focal_monodepth_relpose_gb_impl(Eigen::VectorXd d) {
@@ -270,6 +272,97 @@ Eigen::MatrixXd shared_focal_monodepth_relpose_eigen_impl(Eigen::VectorXd d) {
 
     sols.conservativeResize(4, m);
     return sols;
+}
+
+void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                                    const std::vector<Eigen::Vector2d> &sigma,
+                                    std::vector<ImagePair> *models, const RansacOptions &opt) {
+    models->clear();
+    models->reserve(2);
+    std::vector<Eigen::Vector3d> x1h(3);
+    std::vector<Eigen::Vector3d> x2h(3);
+    for (int i = 0; i < 3; ++i) {
+        x1h[i] = x1[i].homogeneous();
+        x2h[i] = x2[i].homogeneous();
+    }
+
+    double depth1[3];
+    double depth2[3];
+    for (int i = 0; i < 3; ++i) {
+        depth1[i] = sigma[i][0];
+        depth2[i] = sigma[i][1];
+    }
+
+//    Eigen::VectorXd datain(18);
+//    datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
+//        x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
+
+    Eigen::Vector3d X101 = depth1[0] * x1h[0] - depth1[1] * x1h[1];
+    Eigen::Vector3d X201 = depth2[0] * x2h[0] - depth2[1] * x2h[1];
+
+    double f2 = (X101(0) * X101(0) + X101(1) * X101(1) - X201(0) * X201(0) - X201(1) * X201(1)) /
+                (X201(2) * X201(2) - X101(2) * X101(2));
+
+    if (f2 > 0) {
+        double f = std::sqrt(f2);
+
+        // if (f > 4.0 || f < 0.2)
+        //     f = 1.2;
+        Eigen::DiagonalMatrix<double, 3> Kinv(1.0/f, 1.0/f, 1.0);
+
+        Eigen::Vector3d X10 = depth1[0] * Kinv * x1h[0];
+        Eigen::Vector3d X20 = depth2[0] * Kinv * x2h[0];
+
+        Eigen::Vector3d X11 = depth1[1] * Kinv * x1h[1];
+        Eigen::Vector3d X21 = depth2[1] * Kinv * x2h[1];
+
+        const double c2 = X10.squaredNorm(), c3 = X11.squaredNorm(), c4 = X20.squaredNorm(), c5 = X21.squaredNorm(),
+                     b0 = 2 * X20.transpose() * x2h[2], b1 = 2 * X10.transpose() * x1h[2],
+                     b2 = 2 * X21.transpose() * x2h[2], b3 = 2 * X11.transpose() * x1h[2],
+
+                     b4 = x1h[2].squaredNorm(), b5 = x2h[2].squaredNorm();
+
+        const double a0 = b2 - b0, a1 = (b3 - b1) / a0, a2 = (c2 - c4 + c5 - c3) / a0;
+        static const double TOL_IMAG = 1e-3;
+        double lambda2[2];
+        bool real2[2];
+        univariate::solve_quadratic_real_tol(b5 * a1 * a1 - b4, b1 - a1 * b0 + 2 * a1 * a2 * b5,
+                                             b5 * a2 * a2 - b0 * a2 - c2 + c4, lambda2, real2, TOL_IMAG);
+
+        for (int m = 0; m < 2; ++m) {
+            if (!real2[m])
+                continue;
+            if (lambda2[m] < 0)
+                continue;
+
+            double lambda2s = a1 * lambda2[m] + a2;
+            if (lambda2s < 0)
+                continue;
+
+            Eigen::Vector3d v1 = X20 - X21;
+            Eigen::Vector3d v2 = X20 - lambda2s * x2h[2];
+            Eigen::Matrix3d Y;
+            Y << v1, v2, v1.cross(v2);
+
+            Eigen::Vector3d u1 = X10 - X11;
+            Eigen::Vector3d u2 = X10 - lambda2[m] * x1h[2];
+            Eigen::Matrix3d X;
+            X << u1, u2, u1.cross(u2);
+            X = X.inverse().eval();
+
+            Eigen::Matrix3d rot = Y * X;
+            // if rot is less than 5 deg
+//            if ((rot.trace() - 1) > 1.99238939618)
+//                if (f < opt.min_focal_1 or f > opt.max_focal_1)
+//                    continue;
+
+            Eigen::Vector3d trans = X20 - rot * X10;
+
+            CameraPose pose = CameraPose(rot, trans);
+            Camera camera = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+            models->emplace_back(pose, camera, camera);
+        }
+    }
 }
 
 void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,

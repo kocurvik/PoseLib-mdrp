@@ -30,6 +30,8 @@
 
 #include "PoseLib/robust/utils.h"
 
+#include <iostream>
+
 namespace poselib {
 
 RansacStats estimate_absolute_pose(const std::vector<Point2D> &points2D, const std::vector<Point3D> &points3D,
@@ -293,6 +295,8 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
+    ransac_opt_scaled.max_focal_1 /= scale;
+    ransac_opt_scaled.min_focal_1 /= scale;
     BundleOptions bundle_opt_scaled = bundle_opt;
     bundle_opt_scaled.loss_scale /= scale;
 
@@ -301,8 +305,10 @@ RansacStats estimate_shared_focal_relative_pose(const std::vector<Point2D> &poin
     if (stats.num_inliers > 6) {
         std::vector<Point2D> x1_inliers;
         std::vector<Point2D> x2_inliers;
+        std::vector<Point2D> sigma_inliers;
         x1_inliers.reserve(stats.num_inliers);
         x2_inliers.reserve(stats.num_inliers);
+        sigma_inliers.reserve(stats.num_inliers);
 
         for (size_t k = 0; k < num_pts; ++k) {
             if (!(*inliers)[k])
@@ -352,6 +358,10 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
+    ransac_opt_scaled.max_focal_1 /= scale;
+    ransac_opt_scaled.min_focal_1 /= scale;
+    ransac_opt_scaled.max_focal_2 /= scale;
+    ransac_opt_scaled.min_focal_2 /= scale;
     BundleOptions bundle_opt_scaled = bundle_opt;
     bundle_opt_scaled.loss_scale /= scale;
 
@@ -360,17 +370,24 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
     if (stats.num_inliers > 6) {
         std::vector<Point2D> x1_inliers;
         std::vector<Point2D> x2_inliers;
+        std::vector<Point2D> sigma_inliers;
         x1_inliers.reserve(stats.num_inliers);
         x2_inliers.reserve(stats.num_inliers);
+        sigma_inliers.reserve(stats.num_inliers);
 
         for (size_t k = 0; k < num_pts; ++k) {
             if (!(*inliers)[k])
                 continue;
             x1_inliers.push_back(x1_norm[k]);
             x2_inliers.push_back(x2_norm[k]);
+            sigma_inliers.push_back(sigma[k]);
         }
 
-        refine_shared_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
+        if (ransac_opt.use_reproj) {
+            refine_shared_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+        } else {
+            refine_shared_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
+        }
     }
 
     image_pair->camera1.params[0] *= scale;
@@ -406,6 +423,10 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
+    ransac_opt_scaled.max_focal_1 /= scale;
+    ransac_opt_scaled.min_focal_1 /= scale;
+    ransac_opt_scaled.max_focal_2 /= scale;
+    ransac_opt_scaled.min_focal_2 /= scale;
     BundleOptions bundle_opt_scaled = bundle_opt;
     bundle_opt_scaled.loss_scale /= scale;
 
@@ -414,17 +435,24 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
     if (stats.num_inliers > 7) {
         std::vector<Point2D> x1_inliers;
         std::vector<Point2D> x2_inliers;
+        std::vector<Point2D> sigma_inliers;
         x1_inliers.reserve(stats.num_inliers);
         x2_inliers.reserve(stats.num_inliers);
+        sigma_inliers.reserve(stats.num_inliers);
 
         for (size_t k = 0; k < num_pts; ++k) {
             if (!(*inliers)[k])
                 continue;
             x1_inliers.push_back(x1_norm[k]);
             x2_inliers.push_back(x2_norm[k]);
+            sigma_inliers.push_back(sigma[k]);
         }
 
-        refine_varying_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
+        if (ransac_opt.use_reproj) {
+            refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+        } else {
+            refine_varying_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
+        }
     }
 
     image_pair->camera1.params[0] *= scale;

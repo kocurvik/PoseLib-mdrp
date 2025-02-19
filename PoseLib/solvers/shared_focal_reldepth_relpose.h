@@ -5,15 +5,17 @@
 #ifndef POSELIB_SHARED_FOCAL_RELDEPTH_RELPOSE_H
 #define POSELIB_SHARED_FOCAL_RELDEPTH_RELPOSE_H
 
+#include "PoseLib/camera_pose.h"
+#include "PoseLib/types.h"
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
-#include "PoseLib/camera_pose.h"
 
 namespace poselib {
 
 void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                   const std::vector<Eigen::Vector2d> &sigma,
-                                   std::vector<ImagePair> *models);
+                                   const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models,
+                                   const RansacOptions &opt);
 }
 
 #endif // POSELIB_SHARED_FOCAL_RELDEPTH_RELPOSE_H

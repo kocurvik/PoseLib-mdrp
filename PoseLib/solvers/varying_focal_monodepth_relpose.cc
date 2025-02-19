@@ -6,13 +6,14 @@
 
 #include "PoseLib/misc/decompositions.h"
 #include "PoseLib/misc/essential.h"
+#include "PoseLib/misc/univariate.h"
 #include "relpose_7pt.h"
 
 #include <iostream>
 namespace poselib {
 
 void varying_focal_fundamental_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                       std::vector<ImagePair> *models) {
+                                       std::vector<ImagePair> *models, const RansacOptions &opt) {
 
     std::vector<Eigen::Vector3d> x1h(7);
     std::vector<Eigen::Vector3d> x2h(7);
@@ -32,13 +33,20 @@ void varying_focal_fundamental_relpose(const std::vector<Eigen::Vector2d> &x1, c
         Camera camera1 = cameras.first;
         Camera camera2 = cameras.second;
 
-        if (std::isnan(camera1.focal()))
+        const double focal1 = camera1.focal();
+        const double focal2 = camera2.focal();
+
+        if (std::isnan(focal1))
             return;
-        if (std::isnan(camera2.focal()))
+        if (std::isnan(focal2))
             return;
 
-        Eigen::DiagonalMatrix<double, 3> K1(camera1.focal(), camera1.focal(), 1.0);
-        Eigen::DiagonalMatrix<double, 3> K2(camera2.focal(), camera2.focal(), 1.0);
+//        if (focal1 < opt.max_focal_1 or focal1 > opt.max_focal_1 or
+//            focal2 < opt.min_focal_2 or focal2 > opt.max_focal_2)
+//            continue;
+
+        Eigen::DiagonalMatrix<double, 3> K1(focal1, focal1, 1.0);
+        Eigen::DiagonalMatrix<double, 3> K2(focal2, focal2, 1.0);
 
         Eigen::Matrix3d E = K2 * F * K1;
 
@@ -52,8 +60,8 @@ void varying_focal_fundamental_relpose(const std::vector<Eigen::Vector2d> &x1, c
 }
 
 void varying_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                     const std::vector<Eigen::Vector2d> &sigma,
-                                     std::vector<ImagePair> *models) {
+                                     const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models,
+                                     const RansacOptions &opt) {
     models->clear();
     std::vector<Eigen::Vector3d> x1h(4);
     std::vector<Eigen::Vector3d> x2h(4);
@@ -130,16 +138,24 @@ void varying_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, con
 //    std::cout << "Det: " << F.determinant() << std::endl;
 
     std::pair<Camera, Camera> cameras = focals_from_fundamental(F, Eigen::Vector2d::Zero(), Eigen::Vector2d::Zero());
+
     Camera camera1 = cameras.first;
     Camera camera2 = cameras.second;
 
-    if (std::isnan(camera1.focal()))
+    const double focal1 = camera1.focal();
+    const double focal2 = camera2.focal();
+
+    if (std::isnan(focal1))
         return;
-    if (std::isnan(camera2.focal()))
+    if (std::isnan(focal2))
         return;
 
-    Eigen::DiagonalMatrix<double, 3> K1(camera1.focal(), camera1.focal(), 1.0);
-    Eigen::DiagonalMatrix<double, 3> K2(camera2.focal(), camera2.focal(), 1.0);
+//    if (focal1 < opt.max_focal_1 or focal1 > opt.max_focal_1 or
+//        focal2 < opt.min_focal_2 or focal2 > opt.max_focal_2)
+//        return;
+
+    Eigen::DiagonalMatrix<double, 3> K1(focal1, focal1, 1.0);
+    Eigen::DiagonalMatrix<double, 3> K2(focal2, focal2, 1.0);
 
     Eigen::Matrix3d E = K2 * F * K1;
 
@@ -390,6 +406,150 @@ Eigen::MatrixXd varying_focal_monodepth_eigen(Eigen::VectorXd d){
     return sols;
 }
 
+
+void varying_focal_monodepth_abspose_ours(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                                          const std::vector<Eigen::Vector2d> &sigma,
+                                          std::vector<ImagePair> *models, const RansacOptions &opt){
+    models->clear();
+    models->reserve(3);
+    std::vector<Eigen::Vector3d> x1h(3);
+    std::vector<Eigen::Vector3d> x2h(3);
+    for (int i = 0; i < 3; ++i) {
+        x1h[i] = x1[i].homogeneous();
+        x2h[i] = x2[i].homogeneous();
+    }
+
+    double depth1[3];
+    double depth2[3];
+    for (int i = 0; i < 3; ++i) {
+        depth1[i] = sigma[i][0];
+        depth2[i] = sigma[i][1];
+    }
+    double a[17];
+    a[0] = x1h[0][0]*depth1[0];
+    a[1] = x1h[1][0]*depth1[1];
+    a[2] = x1h[2][0]*depth1[2];
+    a[3] = x1h[0][1]*depth1[0];
+    a[4] = x1h[1][1]*depth1[1];
+    a[5] = x1h[2][1]*depth1[2];
+    a[6] = depth1[0];
+    a[7] = depth1[1];
+    a[8] = depth1[2];
+
+    a[9] = x2h[0][0]*depth2[0];
+    a[10] = x2h[1][0]*depth2[1];
+    a[11] = x2h[2][0];
+    a[12] = x2h[0][1]*depth2[0];
+    a[13] = x2h[1][1]*depth2[1];
+    a[14] = x2h[2][1];
+    a[15] = depth2[0];
+    a[16] = depth2[1];
+
+    double b[12];
+    b[0] = a[0] - a[1];
+    b[1] = a[3] - a[4];
+    b[2] = a[6] - a[7];
+    b[3] = a[0] - a[2];
+    b[4] = a[3] - a[5];
+    b[5] = a[6] - a[8];
+    b[6] = a[1] - a[2];
+    b[7] = a[4] - a[5];
+    b[8] = a[7] - a[8];
+    b[9] = a[9] - a[10];
+    b[10] = a[12] - a[13];
+    b[11] = a[15] - a[16];
+
+    double c[19];
+
+    c[0] = 1.0 / (b[0] * b[0] + b[1] * b[1]);
+    c[1] = (-b[9] * b[9] - b[10] * b[10]) * c[0];
+    c[2] = (b[2] * b[2] - b[11] * b[11]) * c[0];
+    c[3] = 1.0 / (b[3] * b[3] + b[4] * b[4]);
+    c[4] = (-a[11] * a[11] - a[14] * a[14]) * c[3];
+    c[5] = 2.0 * (a[9] * a[11] + a[12] * a[14]) * c[3];
+    c[6] = (-a[9] * a[9] - a[12] * a[12]) * c[3];
+    c[7] = (-1.0) * c[3];
+    c[8] = (2.0 * a[15]) * c[3];
+    c[9] = (b[5] * b[5] - a[15] * a[15]) * c[3];
+    c[10] = 1.0 / (-b[3] * b[3] - b[4] * b[4] + b[6] * b[6] + b[7] * b[7]);
+    c[11] = 2.0 * (a[10] * a[11] - a[9] * a[11] - a[12] * a[14] + a[13] * a[14]) * c[10];
+    c[12] = (a[9] * a[9] - a[10] * a[10] + a[12] * a[12] - a[13] * a[13]) * c[10];
+    c[13] = 2.0 * (a[16] - a[15]) * c[10];
+    c[14] = (a[15] * a[15] - a[16] * a[16] - b[5] * b[5] + b[8] * b[8]) * c[10];
+    c[15] = c[6] - c[1];
+    c[16] = c[9] - c[2];
+    c[17] = c[12] - c[1];
+    c[18] = c[14] - c[2];
+
+    double d[4];
+    d[3] = 1.0 / (c[4] * c[13] - c[7] * c[11]);
+    d[2] = d[3] * (c[5] * c[13] - c[8] * c[11] + c[4] * c[18] - c[7] * c[17]);
+    d[1] = d[3] * (c[5] * c[18] - c[8] * c[17] - c[11] * c[16] + c[13] * c[15]);
+    d[0] = d[3] * (c[15] * c[18] - c[16] * c[17]);
+
+    double roots[3];
+    int num = univariate::solve_cubic_real(d[2], d[1], d[0], roots);
+
+    for (int k = 0; k < num; ++k){
+        double d3 = roots[k];
+        if (d3 < 0)
+            continue;
+        double w = -(c[7]*d3*d3 + c[8]*d3 + c[16]) / (c[4]*d3*d3 + c[5]*d3 + c[15]);
+        if (w < 0)
+            continue;
+
+        // [1, c1, c2] [f^2, m^2, 1]
+        double f = -(c[1]*w + c[2]);
+        if (f < 0)
+            continue;
+        w = std::sqrt(w);
+        f = std::sqrt(f);
+
+        double focal1 = 1.0 / f;
+        double focal2 = 1.0 / w;
+
+//        if (focal1 < opt.max_focal_1 or focal1 > opt.max_focal_1 or
+//            focal2 < opt.min_focal_2 or focal2 > opt.max_focal_2)
+//            continue;
+
+        Eigen::Matrix3d K1inv;
+        K1inv << f, 0, 0,
+            0, f, 0,
+            0, 0, 1;
+
+        Eigen::Matrix3d K2inv;
+        K2inv << w, 0, 0,
+            0,  w, 0,
+            0, 0, 1;
+
+        Eigen::Vector3d v1 = (depth2[0]) * K2inv*x2h[0] - (depth2[1]) * K2inv*x2h[1];
+        Eigen::Vector3d v2 = (depth2[0]) * K2inv*x2h[0] - (d3) * K2inv*x2h[2];
+        Eigen::Matrix3d Y;
+        Y << v1, v2, v1.cross(v2);
+
+        Eigen::Vector3d u1 = (depth1[0]) * K1inv*x1h[0] - (depth1[1]) * K1inv*x1h[1];
+        Eigen::Vector3d u2 = (depth1[0]) * K1inv*x1h[0] - (depth1[2]) * K1inv*x1h[2];
+        Eigen::Matrix3d X;
+        X << u1, u2, u1.cross(u2);
+        X = X.inverse().eval();
+
+        Eigen::Matrix3d rot = Y * X;
+
+        Eigen::Vector3d trans1 = (depth1[0]) * rot * K1inv*x1h[0];
+        Eigen::Vector3d trans2 = (depth2[0]) * K2inv*x2h[0];
+        Eigen::Vector3d trans = trans2 - trans1;
+
+        // if (focal1 > 4.0 || focal1 < 0.2)
+        // focal1 = 1.2;
+        // if (focal2 > 4.0 || focal2 < 0.2)
+        // focal2 = 1.2;
+
+        CameraPose pose = CameraPose(rot, trans);
+        Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal1, 0.0, 0.0}, -1, -1);
+        Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal2, 0.0, 0.0}, -1, -1);
+        models->emplace_back(pose, camera1, camera2);
+    }
+}
 
 void varying_focal_monodepth_relpose_ours(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                           const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,

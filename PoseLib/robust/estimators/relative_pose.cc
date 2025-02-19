@@ -43,6 +43,7 @@
 
 #include <iostream>
 
+
 namespace poselib {
 
 void RelativePoseEstimator::generate_models(std::vector<CameraPose> *models) {
@@ -85,7 +86,7 @@ void SharedFocalRelativePoseEstimator::generate_models(ImagePairVector *models) 
         x1s[k] = x1[sample[k]].homogeneous().normalized();
         x2s[k] = x2[sample[k]].homogeneous().normalized();
     }
-    relpose_6pt_shared_focal(x1s, x2s, models);
+    relpose_6pt_shared_focal(x1s, x2s, models, opt);
 }
 
 double SharedFocalRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
@@ -129,20 +130,32 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
     }
 
     if (opt.use_reldepth) {
-        shared_focal_reldepth_relpose(x1s, x2s, monodepth, models);
+        shared_focal_reldepth_relpose(x1s, x2s, monodepth, models, opt);
         return;
     }
 
-    shared_focal_monodepth_relpose(x1s, x2s, monodepth, opt.use_eigen, models);
+    shared_focal_monodepth_abspose(x1s, x2s, monodepth, models, opt);
 }
 
 double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
-    Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair.camera1.focal());
-    Eigen::Matrix3d E;
-    essential_from_motion(image_pair.pose, &E);
-    Eigen::Matrix3d F = K_inv * (E * K_inv);
+    if (opt.use_reproj) {
+        Eigen::DiagonalMatrix<double, 3> K_inv(1.0 / image_pair.camera1.focal(), 1.0 / image_pair.camera1.focal(), 1.0);
+        std::vector<Point3D> X(x1.size());
+        for (size_t i=0; i < X.size(); ++i){
+            X[i] = sigma[i](0) * (K_inv * x1h[i]);
+        }
+        double score =  compute_msac_score(image_pair.pose, image_pair.camera1.focal(), x2, X,
+                                          opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+        return score;
 
-    return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+    } else {
+        Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair.camera1.focal());
+        Eigen::Matrix3d E;
+        essential_from_motion(image_pair.pose, &E);
+        Eigen::Matrix3d F = K_inv * (E * K_inv);
+
+        return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+    }
 }
 
 void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
@@ -157,13 +170,19 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
             double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
             double tol = opt.max_epipolar_error * 8.0 * factor;
             bundle_opt.loss_scale = tol;
-            refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
+            if (opt.use_reproj)
+                refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+            else
+                refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
         }
     }
 
     bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
-    refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
+    if (opt.use_reproj)
+        refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+    else
+        refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);
 }
 
 void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
@@ -175,26 +194,37 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
     }
 
     if (opt.use_fundamental) {
-        varying_focal_fundamental_relpose(x1s, x2s, models);
+        varying_focal_fundamental_relpose(x1s, x2s, models, opt);
         return;
     }
 
     if (opt.use_4p4d) {
-        varying_focal_monodepth_relpose(x1s, x2s, monodepth, models);
+        varying_focal_monodepth_relpose(x1s, x2s, monodepth, models, opt);
         return;
     }
 
-    varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
+    varying_focal_monodepth_abspose_ours(x1s, x2s, monodepth, models, opt);
 }
 
 double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
-    Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, image_pair.camera1.focal()),
-        K2_inv(1.0, 1.0, image_pair.camera2.focal());
-    Eigen::Matrix3d E;
-    essential_from_motion(image_pair.pose, &E);
-    Eigen::Matrix3d F = K2_inv * (E * K1_inv);
+    if (opt.use_reproj) {
+        Eigen::DiagonalMatrix<double, 3> K1_inv(1.0 / image_pair.camera1.focal(), 1.0 / image_pair.camera1.focal(), 1.0);
+        std::vector<Point3D> X(x1.size());
+        for (size_t i=0; i < X.size(); ++i){
+            X[i] = sigma[i](0) * (K1_inv * x1h[i]);
+        }
+        double score =  compute_msac_score(image_pair.pose, image_pair.camera2.focal(), x2, X,
+                                          opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+        return score;
+    } else {
+        Eigen::DiagonalMatrix<double, 3> K1_inv(1.0, 1.0, image_pair.camera1.focal());
+        Eigen::DiagonalMatrix<double, 3> K2_inv(1.0, 1.0, image_pair.camera2.focal());
+        Eigen::Matrix3d E;
+        essential_from_motion(image_pair.pose, &E);
+        Eigen::Matrix3d F = K2_inv * (E * K1_inv);
 
-    return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+        return compute_sampson_msac_score(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+    }
 }
 
 void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pair) const {
@@ -209,13 +239,19 @@ void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_p
             double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
             double tol = opt.max_epipolar_error * 8.0 * factor;
             bundle_opt.loss_scale = tol;
-            refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
+            if (opt.use_reproj)
+                refine_varying_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+            else
+                refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
         }
     }
 
     bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
-    refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
+    if (opt.use_reproj)
+        refine_varying_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+    else
+        refine_varying_focal_relpose(x1, x2, image_pair, bundle_opt);
 }
 
 void GeneralizedRelativePoseEstimator::generate_models(std::vector<CameraPose> *models) {

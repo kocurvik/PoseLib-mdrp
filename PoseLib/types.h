@@ -59,6 +59,11 @@ struct RansacOptions {
     bool use_fundamental = false;
     bool use_4p4d = false;
     bool no_normalization = false;
+    bool use_reproj = false;
+    double min_focal_1 = 0.0;
+    double max_focal_1 = 1e12;
+    double min_focal_2 = 0.0;
+    double max_focal_2 = 1e12;
     int graduated_steps = 0;
 };
 

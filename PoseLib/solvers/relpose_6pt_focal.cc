@@ -1,4 +1,5 @@
 #include "PoseLib/misc/sturm.h"
+#include "PoseLib/types.h"
 
 #include <Eigen/Dense>
 #include <PoseLib/misc/essential.h>
@@ -1081,7 +1082,7 @@ int solver_shared_focal_relpose_6pt(const Eigen::VectorXd &data, Eigen::Matrix<s
 }
 
 int relpose_6pt_shared_focal(const std::vector<Eigen::Vector3d> &x1, const std::vector<Eigen::Vector3d> &x2,
-                             ImagePairVector *out_image_pairs) {
+                             ImagePairVector *out_image_pairs, const RansacOptions &opt) {
 
     // Compute nullspace to epipolar constraints
     Eigen::Matrix<double, 9, 6> epipolar_constraints;
@@ -1129,14 +1130,19 @@ int relpose_6pt_shared_focal(const std::vector<Eigen::Vector3d> &x1, const std::
         x1_u.reserve(6);
         x2_u.reserve(6);
 
-        for (int i = 0; i < 6; i++) {
-            x1_u.push_back(Eigen::Vector3d(x1[i](0) / focal, x1[i](1) / focal, x1[i](2)).normalized());
-            x2_u.push_back(Eigen::Vector3d(x2[i](0) / focal, x2[i](1) / focal, x2[i](2)).normalized());
+        for (int k = 0; k < 6; k++) {
+            x1_u.push_back(Eigen::Vector3d(x1[k](0) / focal, x1[k](1) / focal, x1[k](2)).normalized());
+            x2_u.push_back(Eigen::Vector3d(x2[k](0) / focal, x2[k](1) / focal, x2[k](2)).normalized());
         }
 
         motion_from_essential(E, x1_u, x2_u, &poses);
 
         for (CameraPose const &pose : poses) {
+//            if ((pose.R().trace() - 1) > 1.99238939618) {
+//                if (calib.focal() < opt.min_focal_1 and calib.focal() > opt.max_focal_1) {
+//                    continue;
+//                }
+//            }
             out_image_pairs->emplace_back(ImagePair(pose, calib, calib));
             n_poses++;
         }

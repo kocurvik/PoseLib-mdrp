@@ -6,8 +6,8 @@
 
 namespace poselib {
 void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                   const std::vector<Eigen::Vector2d> &sigma,
-                                   std::vector<ImagePair> *models) {
+                                   const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models,
+                                   const RansacOptions &opt) {
     size_t rowIdx = 0;
     Eigen::MatrixXd coefficients(9, 10);
 
@@ -69,6 +69,7 @@ void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const
 
             if (rootof > 0) {
                 double focal = std::sqrt(rootof);
+
                 Eigen::MatrixXd K(3, 3);
                 K << focal, 0, 0,
                     0, focal, 0,
@@ -137,6 +138,14 @@ void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const
                 Eigen::Vector3d n1 = v2.cross(u1);
                 Eigen::Vector3d t1 = -(H2 - R1) * n1;
 
+                // if rot is more than 5 deg
+//                if ((R1.trace() - 1) > 1.99238939618) {
+//                    if (focal > opt.min_focal_1 and focal < opt.max_focal_1) {
+//                        CameraPose pose1 = CameraPose(R1, t1);
+//                        Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal, 0.0, 0.0}, -1, -1);
+//                        models->emplace_back(pose1, camera1, camera1);
+//                    }
+//                } else {
                 CameraPose pose1 = CameraPose(R1, t1);
                 Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal, 0.0, 0.0}, -1, -1);
                 models->emplace_back(pose1, camera1, camera1);
@@ -144,6 +153,13 @@ void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const
                 Eigen::Vector3d n2 = v2.cross(u2);
                 Eigen::Vector3d t2 = -(H2 - R2) * n2;
 
+//                if ((R2.trace() - 1) > 1.99238939618) {
+//                    if (focal > opt.min_focal_1 and focal < opt.max_focal_1) {
+//                        CameraPose pose2 = CameraPose(R2, t2);
+//                        Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal, 0.0, 0.0}, -1, -1);
+//                        models->emplace_back(pose2, camera2, camera2);
+//                    }
+//                } else {
                 CameraPose pose2 = CameraPose(R2, t2);
                 Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal, 0.0, 0.0}, -1, -1);
                 models->emplace_back(pose2, camera2, camera2);
