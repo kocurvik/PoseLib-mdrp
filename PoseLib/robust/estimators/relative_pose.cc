@@ -134,7 +134,10 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
         return;
     }
 
-    shared_focal_monodepth_abspose(x1s, x2s, monodepth, models, opt);
+    if (opt.use_p3p)
+        shared_focal_monodepth_abspose(x1s, x2s, monodepth, models, opt);
+    else
+        shared_focal_monodepth_relpose(x1s, x2s, monodepth, opt.use_eigen, models);
 }
 
 double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
