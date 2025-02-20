@@ -455,7 +455,10 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
         }
 
         if (ransac_opt.use_reproj) {
-            refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            if (ransac_opt.optimize_shift)
+                refine_varying_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            else
+                refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
         } else {
             refine_varying_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
         }
