@@ -1355,8 +1355,8 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
             zp[0] = f2 * Z(0) * inv_z;
             zp[1] = f2 * Z(1) * inv_z;
 
-            double dXdx0 = - sigma[i](0) * inv_f1 * inv_f1 * x1[i](0);
-            double dXdx1 = - sigma[i](0) * inv_f1 * inv_f1 * x1[i](1);
+            double dXdx0 = - (sigma[i](0) + shift) * inv_f1 * inv_f1 * x1[i](0);
+            double dXdx1 = - (sigma[i](0) + shift) * inv_f1 * inv_f1 * x1[i](1);
 
             double dZ0df1 = R(0, 0) * dXdx0 + R(0, 1) * dXdx1;
             double dZ1df1 = R(1, 0) * dXdx0 + R(1, 1) * dXdx1;
