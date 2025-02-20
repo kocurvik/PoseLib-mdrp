@@ -618,7 +618,7 @@ void varying_focal_monodepth_relpose_ours(const std::vector<Eigen::Vector2d> &x1
         Eigen::Vector3d trans = trans2 - trans1;
 
         CameraPose pose = CameraPose(rot, trans);
-        Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+        Camera camera1 = Camera("SIMPLE_PINHOLE_SHIFT", std::vector<double>{f, 0.0, 0.0, u}, -1, -1);
         Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{w, 0.0, 0.0}, -1, -1);
         models->emplace_back(pose, camera1, camera2);
     }

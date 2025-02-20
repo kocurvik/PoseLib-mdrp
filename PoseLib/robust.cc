@@ -358,6 +358,7 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
+    ransac_opt_scaled.max_reproj_error /= scale;
     ransac_opt_scaled.max_focal_1 /= scale;
     ransac_opt_scaled.min_focal_1 /= scale;
     ransac_opt_scaled.max_focal_2 /= scale;
@@ -427,6 +428,7 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error /= scale;
+    ransac_opt_scaled.max_reproj_error /= scale;
     ransac_opt_scaled.max_focal_1 /= scale;
     ransac_opt_scaled.min_focal_1 /= scale;
     ransac_opt_scaled.max_focal_2 /= scale;

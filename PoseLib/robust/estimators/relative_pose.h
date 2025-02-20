@@ -136,8 +136,8 @@ class VaryingFocalMonodepthRelativePoseEstimator {
   public:
     VaryingFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                                const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_fundamental ? 7 : 4), num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1),
-          x2(points2D_2), sigma(sigma),
+        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_p3p ? 3 : 4)), num_data(points2D_1.size()),
+          opt(ransac_opt), x1(points2D_1), x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);
         x2s.resize(sample_sz);
@@ -240,8 +240,7 @@ class FundamentalEstimator {
 class RelativePoseMonoDepthEstimator {
   public:
     RelativePoseMonoDepthEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
-                                         const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma,
-                                         bool try_permuations = true)
+                                         const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
         : num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1), x2(points2D_2), mono_depth(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);
@@ -251,6 +250,11 @@ class RelativePoseMonoDepthEstimator {
         sigmas.resize(sample_sz);
         rel_depth.resize(sample_sz);
         sample.resize(sample_sz);
+        if (opt.use_reproj){
+            X1.resize(num_data);
+            for (size_t i = 0; i < num_data; ++i)
+                X1[i] = x1[i].homogeneous();
+        }
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
@@ -262,10 +266,6 @@ class RelativePoseMonoDepthEstimator {
     const std::vector<Point2D> &x1;
     const std::vector<Point2D> &x2;
     const std::vector<Point2D> &mono_depth;
-    // TODO expose these
-    const bool graduated_optimization = true;
-    const double graduated_max = 8.0;
-    const size_t graduated_steps = 3;
     RandomSampler sampler;
     // pre-allocated vectors for sampling
     std::vector<Eigen::Vector2d> x1s, x2s;
@@ -273,6 +273,7 @@ class RelativePoseMonoDepthEstimator {
     std::vector<Eigen::Vector3d> x2n, X;
     std::vector<double> rel_depth;
     std::vector<size_t> sample;
+    std::vector<Eigen::Vector3d> X1;
 };
 
 } // namespace poselib

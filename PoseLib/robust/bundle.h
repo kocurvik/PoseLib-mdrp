@@ -108,6 +108,11 @@ BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const s
                                          ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
                                          const std::vector<double> &weights = std::vector<double>());
 
+BundleStats refine_varying_focal_abspose_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                               const std::vector<Point2D> &sigma,
+                                               ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
+                                               const std::vector<double> &weights = std::vector<double>());
+
 BundleStats refine_varying_focal_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                          ImagePair *image_pair, const BundleOptions &opt = BundleOptions(),
                                          const std::vector<double> &weights = std::vector<double>());
