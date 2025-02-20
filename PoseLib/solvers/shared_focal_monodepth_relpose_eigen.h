@@ -12,11 +12,11 @@
 #include <Eigen/Dense>
 
 namespace poselib {
-void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                     const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,
                                     std::vector<ImagePair> *models);
 
-void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+void shared_focal_monodepth_3p(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                     const std::vector<Eigen::Vector2d> &sigma,
                                     std::vector<ImagePair> *models, const RansacOptions &opt);
 }

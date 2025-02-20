@@ -404,6 +404,32 @@ const std::vector<size_t> SimplePinholeCameraModel::focal_idx = {0};
 const std::vector<size_t> SimplePinholeCameraModel::principal_point_idx = {1, 2};
 
 ///////////////////////////////////////////////////////////////////
+// Simple Pinhole camera with depth shift
+// params = f, cx, cy, shift
+
+void SimplePinholeShiftCameraModel::project(const std::vector<double> &params, const Eigen::Vector2d &x,
+                                            Eigen::Vector2d *xp) {
+    (*xp)(0) = params[0] * x(0) + params[1];
+    (*xp)(1) = params[0] * x(1) + params[2];
+}
+void SimplePinholeShiftCameraModel::project_with_jac(const std::vector<double> &params, const Eigen::Vector2d &x,
+                                                     Eigen::Vector2d *xp, Eigen::Matrix2d *jac) {
+    (*xp)(0) = params[0] * x(0) + params[1];
+    (*xp)(1) = params[0] * x(1) + params[2];
+    (*jac)(0, 0) = params[0];
+    (*jac)(0, 1) = 0.0;
+    (*jac)(1, 0) = 0.0;
+    (*jac)(1, 1) = params[0];
+}
+void SimplePinholeShiftCameraModel::unproject(const std::vector<double> &params, const Eigen::Vector2d &xp,
+                                              Eigen::Vector2d *x) {
+    (*x)(0) = (xp(0) - params[1]) / params[0];
+    (*x)(1) = (xp(1) - params[2]) / params[0];
+}
+const std::vector<size_t> SimplePinholeShiftCameraModel::focal_idx = {0};
+const std::vector<size_t> SimplePinholeShiftCameraModel::principal_point_idx = {1, 2};
+
+///////////////////////////////////////////////////////////////////
 // Radial camera
 // params = f, cx, cy, k1, k2
 

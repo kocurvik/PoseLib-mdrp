@@ -60,6 +60,7 @@ struct RansacOptions {
     bool use_4p4d = false;
     bool no_normalization = false;
     bool use_reproj = false;
+    bool optimize_shift = false;
     double min_focal_1 = 0.0;
     double max_focal_1 = 1e12;
     double min_focal_2 = 0.0;

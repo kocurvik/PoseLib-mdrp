@@ -135,9 +135,9 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
     }
 
     if (opt.use_p3p)
-        shared_focal_monodepth_abspose(x1s, x2s, monodepth, models, opt);
+        shared_focal_monodepth_3p(x1s, x2s, monodepth, models, opt);
     else
-        shared_focal_monodepth_relpose(x1s, x2s, monodepth, opt.use_eigen, models);
+        shared_focal_monodepth_4p(x1s, x2s, monodepth, opt.use_eigen, models);
 }
 
 double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
@@ -174,7 +174,10 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
             if (opt.use_reproj) {
                 double tol = opt.max_reproj_error * 8.0 * factor;
                 bundle_opt.loss_scale = tol;
-                refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+                if (opt.optimize_shift)
+                    refine_shared_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
+                else
+                    refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
             } else {
                 double tol = opt.max_epipolar_error * 8.0 * factor;
                 bundle_opt.loss_scale = tol;
@@ -187,7 +190,10 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
     bundle_opt.max_iterations = opt.lo_iterations;
     if (opt.use_reproj) {
         bundle_opt.loss_scale = opt.max_reproj_error;
-        refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
+        if (opt.optimize_shift)
+            refine_shared_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
+        else
+            refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
     } else {
         bundle_opt.loss_scale = opt.max_epipolar_error;
         refine_shared_focal_relpose(x1, x2, image_pair, bundle_opt);

@@ -346,7 +346,7 @@ void shared_focal_abspose_single_perm(const std::vector<Eigen::Vector3d> &x1h, c
 }
 
 
-void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+void shared_focal_monodepth_3p(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                     const std::vector<Eigen::Vector2d> &sigma,
                                     std::vector<ImagePair> *models, const RansacOptions &opt) {
     models->clear();
@@ -391,7 +391,7 @@ void shared_focal_monodepth_abspose(const std::vector<Eigen::Vector2d> &x1, cons
 }
 
 
-void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                     const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,
                                     std::vector<ImagePair> *models) {
     models->clear();
@@ -449,8 +449,9 @@ void shared_focal_monodepth_relpose(const std::vector<Eigen::Vector2d> &x1, cons
         Eigen::Vector3d trans = trans2 - trans1;
 
         CameraPose pose = CameraPose(rot, trans);
-        Camera camera = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
-        models->emplace_back(pose, camera, camera);
+        Camera camera1 = Camera("SIMPLE_PINHOLE_SHIFT", std::vector<double>{f, 0.0, 0.0, u}, -1, -1);
+        Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+        models->emplace_back(pose, camera1, camera2);
     }
 }
 } //namespace poselib

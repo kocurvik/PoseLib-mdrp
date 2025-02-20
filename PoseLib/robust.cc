@@ -384,7 +384,11 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
         }
 
         if (ransac_opt.use_reproj) {
-            refine_shared_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            if (ransac_opt.optimize_shift) {
+                refine_shared_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            } else {
+                refine_shared_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            }
         } else {
             refine_shared_focal_relpose(x1_inliers, x2_inliers, image_pair, bundle_opt_scaled);
         }
