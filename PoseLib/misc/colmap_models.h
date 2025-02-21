@@ -95,12 +95,10 @@ SETUP_CAMERA_SHARED_DEFS(SimpleRadialCameraModel, "SIMPLE_RADIAL", 2);
 SETUP_CAMERA_SHARED_DEFS(RadialCameraModel, "RADIAL", 3);
 SETUP_CAMERA_SHARED_DEFS(OpenCVCameraModel, "OPENCV", 4);
 SETUP_CAMERA_SHARED_DEFS(OpenCVFisheyeCameraModel, "OPENCV_FISHEYE", 5);
-SETUP_CAMERA_SHARED_DEFS(SimplePinholeShiftCameraModel, "SIMPLE_PINHOLE_SHIFT", 100);
 
 #define SWITCH_CAMERA_MODELS                                                                                           \
     SWITCH_CAMERA_MODEL_CASE(NullCameraModel)                                                                          \
     SWITCH_CAMERA_MODEL_CASE(SimplePinholeCameraModel)                                                                 \
-    SWITCH_CAMERA_MODEL_CASE(SimplePinholeShiftCameraModel)                                                            \
     SWITCH_CAMERA_MODEL_CASE(PinholeCameraModel)                                                                       \
     SWITCH_CAMERA_MODEL_CASE(SimpleRadialCameraModel)                                                                  \
     SWITCH_CAMERA_MODEL_CASE(RadialCameraModel)                                                                        \

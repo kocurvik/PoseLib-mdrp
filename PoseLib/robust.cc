@@ -247,22 +247,39 @@ RansacStats estimate_relative_pose_w_mono_depth(
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_epipolar_error =
         ransac_opt.max_epipolar_error * 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+    ransac_opt_scaled.max_reproj_error =
+        ransac_opt.max_reproj_error * 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
     RansacStats stats = ransac_relpose_w_mono_depth(x1_calib, x2_calib, sigmas, ransac_opt_scaled, pose, inliers);
     if (stats.num_inliers > 5) {
         // Collect inlier for additional bundle adjustment
         // TODO: use camera models for this refinement!
         std::vector<Point2D> x1_inliers;
         std::vector<Point2D> x2_inliers;
+        std::vector<Point2D> sigma_inliers;
         x1_inliers.reserve(stats.num_inliers);
         x2_inliers.reserve(stats.num_inliers);
+        sigma_inliers.reserve(stats.num_inliers);
         for (size_t k = 0; k < num_pts; ++k) {
             if (!(*inliers)[k])
                 continue;
             x1_inliers.push_back(x1_calib[k]);
             x2_inliers.push_back(x2_calib[k]);
+            sigma_inliers.push_back(sigmas[k]);
         }
         BundleOptions scaled_bundle_opt = bundle_opt;
         scaled_bundle_opt.loss_scale = bundle_opt.loss_scale * 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+        if (ransac_opt.use_reproj) {
+            if (ransac_opt.optimize_shift){
+                refine_calib_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
+                return stats;
+            }
+            std::vector<Point3D> X(x1_inliers.size());
+            for (size_t i; i < x1_inliers.size(); ++i)
+                X[i] = sigma_inliers[i](0) * x1_inliers[i].homogeneous();
+            bundle_adjust(x2_inliers, X, pose, scaled_bundle_opt);
+            return stats;
+        }
+
         refine_relpose(x1_inliers, x2_inliers, pose, scaled_bundle_opt);
     }
     return stats;

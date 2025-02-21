@@ -28,6 +28,10 @@ void varying_focal_monodepth_abspose_ours(const std::vector<Eigen::Vector2d> &x1
                                           const std::vector<Eigen::Vector2d> &sigma,
                                           std::vector<ImagePair> *models,
                                           const RansacOptions &opt);
+
+void varying_focal_monodepth_s00_ours(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                                      const std::vector<Eigen::Vector2d> &sigma,
+                                      std::vector<ImagePair> *models);
 }
 
 #endif // POSELIB_VARYING_FOCAL_MONODEPTH_RELPOSE_H

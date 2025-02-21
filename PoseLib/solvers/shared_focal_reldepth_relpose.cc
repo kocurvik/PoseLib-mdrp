@@ -168,5 +168,178 @@ void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const
     }
     return;
 }
+
+Eigen::MatrixXd solver_p3p_s00f(Eigen::VectorXd d)
+{
+    Eigen::VectorXd coeffs(18);
+    coeffs[0] = d[0];
+    coeffs[1] = d[2];
+    coeffs[2] = d[1];
+    coeffs[3] = d[3];
+    coeffs[4] = d[4];
+    coeffs[5] = d[5];
+    coeffs[6] = d[8];
+    coeffs[7] = d[6];
+    coeffs[8] = d[9];
+    coeffs[9] = d[10];
+    coeffs[10] = d[7];
+    coeffs[11] = d[11];
+    coeffs[12] = d[12];
+    coeffs[13] = d[13];
+    coeffs[14] = d[15];
+    coeffs[15] = d[16];
+    coeffs[16] = d[14];
+    coeffs[17] = d[17];
+
+    static const int coeffs_ind[] = {0,4,12,0,5,12,13,2,4,0,7,13,2,5,12,16,7,2,13,10,0,16,1,6,14,1,8,14,15,1,9,15,3,6,3,8,14,17,9,3,15,11,1,17,11,17,3};
+
+    static const int C_ind[] = {0,5,8,10,14,16,17,18,20,30,32,34,37,38,40,44,47,48,49,50,51,52,54,59,62,64,68,70,71,75,77,79,81,83,91,92,94,98,101,102,103,104,105,106,110,112,114};
+
+    Eigen::MatrixXd C = Eigen::MatrixXd::Zero(9,13);
+    for (int i = 0; i < 47; i++) {
+        C(C_ind[i]) = coeffs(coeffs_ind[i]);
+    }
+
+    Eigen::MatrixXd C0 = C.leftCols(9);
+    Eigen::MatrixXd C1 = C.rightCols(4);
+    Eigen::MatrixXd C12 = C0.partialPivLu().solve(C1);
+    Eigen::MatrixXd RR(7, 4);
+    RR << -C12.bottomRows(3), Eigen::MatrixXd::Identity(4, 4);
+
+    static const int AM_ind[] = {0,1,2,5};
+    Eigen::MatrixXd AM(4, 4);
+    for (int i = 0; i < 4; i++) {
+        AM.row(i) = RR.row(AM_ind[i]);
+    }
+
+    Eigen::EigenSolver<Eigen::MatrixXd> es(AM);
+    Eigen::ArrayXcd D = es.eigenvalues();
+    Eigen::ArrayXXcd V = es.eigenvectors();
+    V = (V / V.row(3).replicate(4, 1)).eval();
+
+    Eigen::MatrixXd sols(3, 4); // s f d
+    int m = 0;
+    Eigen::MatrixXcd V0(1, 4);
+    // sols.row(0) = D.transpose(); // s
+    V0 = V.row(0) / (V.row(1)); //d3
+
+    for (int k = 0; k < 4; ++k) {
+
+        if (abs(D(k).imag()) > 0.01 || D(k).real() < 0.1 || D(k).real() > 10.0 || abs(V0(0, k).imag()) > 0.01 || V0(0, k).real() < 0.0)
+            continue;
+
+        double s2 = D(k).real(); // s^2
+        double f2 = -(d[2] * s2 + d[3]) / (d[0] * s2 + d[1]); // f^2
+
+        if (f2 < 0.0)
+            continue;
+
+
+        sols(0, m) = std::sqrt(s2);  // s
+        sols(1, m) = std::sqrt(f2); // f
+        sols(2, m) = V0(0, k).real();   // d3
+        ++m;
+    }
+
+    sols.conservativeResize(3, m);
+
+    return sols;
+}
+
+
+void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                               const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models) {
+    models->clear();
+    models->reserve(4);
+    std::vector<Eigen::Vector3d> x1h(3);
+    std::vector<Eigen::Vector3d> x2h(3);
+    for (int i = 0; i < 3; ++i) {
+        x1h[i] = x1[i].homogeneous();
+        x2h[i] = x2[i].homogeneous();
+    }
+
+    double depth1[3];
+    double depth2[3];
+    for (int i = 0; i < 3; ++i) {
+        depth1[i] = sigma[i][0];
+        depth2[i] = sigma[i][1];
+    }
+
+    Eigen::Matrix3d X1;
+    X1.col(0) = depth1[0] * x1h[0];
+    X1.col(1) = depth1[1] * x1h[1];
+    X1.col(2) = depth1[2] * x1h[2];
+
+    Eigen::Matrix3d X2;
+    X2.col(0) = depth2[0] * x2h[0];
+    X2.col(1) = depth2[1] * x2h[1];
+    X2.col(2) = x2h[2];
+
+    double a[17];
+
+    a[0] = X1(0, 0); a[1] = X1(0, 1); a[2] = X1(0, 2);
+    a[3] = X1(1, 0); a[4] = X1(1, 1); a[5] = X1(1, 2);
+    a[6] = X1(2, 0); a[7] = X1(2, 1); a[8] = X1(2, 2);
+
+    a[9]  = X2(0, 0); a[10] = X2(0, 1); a[11] = X2(0, 2);
+    a[12] = X2(1, 0); a[13] = X2(1, 1); a[14] = X2(1, 2);
+    a[15] = X2(2, 0); a[16] = X2(2, 1);
+
+    double b[12];
+    b[0] = a[0] - a[1]; b[1] = a[3] - a[4]; b[2] = a[6] - a[7];
+    b[3] = a[0] - a[2]; b[4] = a[3] - a[5]; b[5] = a[6] - a[8];
+    b[6] = a[1] - a[2]; b[7] = a[4] - a[5]; b[8] = a[7] - a[8];
+    b[9]  = a[9] - a[10];
+    b[10] = a[12] - a[13];
+    b[11] = a[15] - a[16];
+
+
+
+    Eigen::VectorXd datain(18);
+    datain << -b[11] * b[11], b[2] * b[2], -b[9] * b[9] - b[10] * b[10], b[0] * b[0] + b[1] * b[1],
+        -1.0, 2 * a[15], -a[15] * a[15], b[5] * b[5], -a[11] * a[11] - a[14] * a[14],
+        2.0 * a[9] * a[11] + 2.0 * a[12] * a[14], -a[9] * a[9] - a[12] * a[12], b[3] * b[3] + b[4] * b[4],
+        2.0 * a[16] - 2.0 * a[15], a[15] * a[15] - a[16] * a[16], b[8] * b[8] - b[5] * b[5],
+        2.0 * a[10] * a[11] - 2.0 * a[9] * a[11] - 2.0 * a[12] * a[14] + 2.0 * a[13] * a[14],
+        a[9] * a[9] - a[10] * a[10] + a[12] * a[12] - a[13] * a[13],
+        -b[3] * b[3] - b[4] * b[4] + b[6] * b[6] + b[7] * b[7];
+
+
+    Eigen::MatrixXd sols;
+    sols = solver_p3p_s00f(datain);
+
+
+    for (int k = 0; k < sols.cols(); ++k) {
+        double s = sols(0, k);
+        double f = sols(1, k);
+        double d3 = sols(2, k);
+
+        Eigen::Matrix3d Kinv;
+        Kinv << 1.0 / f, 0, 0, 0, 1.0 / f, 0, 0, 0, 1;
+
+        Eigen::Vector3d v1 = s * (depth2[0]) * Kinv * x2h[0] - s * (depth2[1]) * Kinv * x2h[1];
+        Eigen::Vector3d v2 = s * (depth2[0]) * Kinv * x2h[0] - s * (d3) * Kinv * x2h[2];
+        Eigen::Matrix3d Y;
+        Y << v1, v2, v1.cross(v2);
+
+        Eigen::Vector3d u1 = (depth1[0]) * Kinv * x1h[0] - (depth1[1]) * Kinv * x1h[1];
+        Eigen::Vector3d u2 = (depth1[0]) * Kinv * x1h[0] - (depth1[2]) * Kinv * x1h[2];
+        Eigen::Matrix3d X;
+        X << u1, u2, u1.cross(u2);
+        X = X.inverse().eval();
+
+        Eigen::Matrix3d rot = Y * X;
+
+        Eigen::Vector3d trans1 = (depth1[0]) * rot * Kinv * x1h[0];
+        Eigen::Vector3d trans2 = s * (depth2[0]) * Kinv * x2h[0];
+        Eigen::Vector3d trans = trans2 - trans1;
+
+        CameraPose pose = CameraPose(rot, trans);
+        Camera camera = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+        models->emplace_back(pose, camera, camera);
+    }
+
+}
+
 }
 

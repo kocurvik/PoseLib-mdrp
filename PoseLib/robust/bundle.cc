@@ -432,6 +432,41 @@ BundleStats refine_shared_focal_abspose_shift(const std::vector<Point2D> &x1, co
 }
 
 template <typename WeightType, typename LossFunction>
+BundleStats refine_calib_abspose_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose, const BundleOptions &opt,
+                                       const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    AbsPoseShiftJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, weights);
+    return lm_impl<decltype(accum)>(accum, pose, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_calib_abspose_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose,
+                                       const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_calib_abspose_shift<WeightType, LossFunction>(x1, x2, sigma, pose, opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+// Entry point for essential matrix refinement
+BundleStats refine_calib_abspose_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose, const BundleOptions &opt,
+                                        const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_calib_abspose_shift<std::vector<double>>(x1, x2, sigma, pose, opt, weights);
+    } else {
+        return refine_calib_abspose_shift<UniformWeightVector>(x1, x2, sigma, pose, opt, UniformWeightVector());
+    }
+}
+
+template <typename WeightType, typename LossFunction>
 BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                         const std::vector<Point2D> &sigma,
                                         ImagePair *image_pair, const BundleOptions &opt, const WeightType &weights) {

@@ -134,6 +134,7 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
         pose.q << q_flip.w(), q_flip.x(), q_flip.y(), q_flip.z();
         pose.t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
         pose.t.normalize();
+        pose.shift = u;
         rel_pose->emplace_back(pose);
         num_sols++;
     }

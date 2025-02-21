@@ -45,6 +45,7 @@ struct alignas(32) CameraPose {
     // with real part first, i.e. QW, QX, QY, QZ
     Eigen::Vector4d q;
     Eigen::Vector3d t;
+    double shift{0.0};
 
     // Constructors (Defaults to identity camera)
     CameraPose() : q(1.0, 0.0, 0.0, 0.0), t(0.0, 0.0, 0.0) {}

@@ -54,7 +54,9 @@ struct RansacOptions {
     bool all_permutations = false;
     bool use_reldepth = false;
     bool use_p3p = false;
-    bool use_monodepth = false;
+    bool use_ours = false;
+    bool solver_scale = false;
+    bool solver_shift = false;
     bool use_eigen = false;
     bool use_fundamental = false;
     bool use_4p4d = false;

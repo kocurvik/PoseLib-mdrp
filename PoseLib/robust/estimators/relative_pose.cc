@@ -134,10 +134,24 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
         return;
     }
 
-    if (opt.use_p3p)
-        shared_focal_monodepth_3p(x1s, x2s, monodepth, models, opt);
-    else
-        shared_focal_monodepth_4p(x1s, x2s, monodepth, opt.use_eigen, models);
+    if (opt.use_ours) {
+        if (opt.solver_scale and opt.solver_shift) {
+            shared_focal_monodepth_4p(x1s, x2s, monodepth, opt.use_eigen, models);
+            return;
+        }
+
+        if (opt.solver_scale and !opt.solver_shift) {
+            shared_focal_s00f_relpose(x1s, x2s, monodepth, models);
+            return;
+        }
+
+        if (!opt.solver_scale and !opt.solver_shift) {
+            shared_focal_monodepth_3p(x1s, x2s, monodepth, models, opt);
+            return;
+        }
+    }
+
+    throw std::runtime_error("No solver called");
 }
 
 double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
@@ -146,7 +160,7 @@ double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &i
         std::vector<Point3D> X(x1.size());
 
         if (opt.optimize_shift) {
-            double shift = image_pair.camera1.params[3];
+            double shift = image_pair.pose.shift;
             for (size_t i=0; i < X.size(); ++i){
                 X[i] = (sigma[i](0) + shift) * (K_inv * x1h[i]);
             }
@@ -223,12 +237,24 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
         return;
     }
 
-    if (opt.use_p3p) {
-        varying_focal_monodepth_abspose_ours(x1s, x2s, monodepth, models, opt);
-        return;
+    if (opt.use_ours) {
+        if (!opt.solver_scale and !opt.solver_shift) {
+            varying_focal_monodepth_abspose_ours(x1s, x2s, monodepth, models, opt);
+            return;
+        }
+
+        if (opt.solver_scale and !opt.solver_shift) {
+            varying_focal_monodepth_s00_ours(x1s, x2s, monodepth, models);
+            return;
+        }
+
+        if (opt.solver_scale and opt.solver_shift) {
+            varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
+            return;
+        }
     }
 
-    varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
+    throw std::runtime_error("No solver called");
 }
 
 double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
@@ -236,7 +262,7 @@ double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &
         Eigen::DiagonalMatrix<double, 3> K1_inv(1.0 / image_pair.camera1.focal(), 1.0 / image_pair.camera1.focal(), 1.0);
         std::vector<Point3D> X(x1.size());
         if (opt.optimize_shift){
-            double shift = image_pair.camera1.params[3];
+            double shift = image_pair.pose.shift;
             for (size_t i = 0; i < X.size(); ++i) {
                 X[i] = (sigma[i](0) + shift) * (K1_inv * x1h[i]);
             }
@@ -462,11 +488,11 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
             X[k] = mono_depth[sample[k]](0) * x1[sample[k]].homogeneous();
         }
         p3p(x2n, X, models);
-        if (not opt.use_monodepth)
+        if (not opt.use_ours)
             return;
     }
 
-    if (opt.use_monodepth) {
+    if (opt.use_ours and opt.solver_shift and opt.solver_scale) {
         for (size_t k = 0; k < sample_sz; ++k) {
             x1s[k] = x1[sample[k]];
             x2s[k] = x2[sample[k]];
@@ -479,11 +505,17 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
     throw std::runtime_error("No solver called");
 }
 double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
-    if (opt.use_reproj){
+    if (opt.use_reproj) {
+        if (opt.optimize_shift) {
+            std::vector<Point3D> X1s(x1.size());
+            double shift = pose.shift;
+            for (size_t i = 0; i < x1.size(); ++i)
+                X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
+            return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+        }
         return compute_msac_score(pose, x2, X1, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-    } else {
-        return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
     }
+    return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
 }
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     if(opt.lo_iterations == 0)
@@ -495,33 +527,53 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
         bundle_opt.max_iterations = 5;
         for (int k = 0; k < opt.graduated_steps; ++k) {
             double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
-            double tol = opt.max_epipolar_error * 8.0 * factor;
-            bundle_opt.loss_scale = tol;
-            refine_relpose(x1, x2, pose, bundle_opt);
+
+            if (opt.use_reproj) {
+                double tol = opt.max_reproj_error * 8.0 * factor;
+                bundle_opt.loss_scale = tol;
+
+                if (opt.optimize_shift) {
+                    refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
+                } else {
+                    bundle_adjust(x2, X1, pose, bundle_opt);
+                }
+            } else {
+                double tol = opt.max_epipolar_error * 8.0 * factor;
+                bundle_opt.loss_scale = tol;
+                refine_relpose(x1, x2, pose, bundle_opt);
+            }
         }
     }
 
-    bundle_opt.loss_scale = opt.max_epipolar_error;
     bundle_opt.max_iterations = opt.lo_iterations;
 
-    std::vector<char> inliers;
-    int num_inl = get_inliers(*pose, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
+//    std::vector<char> inliers;
+//    int num_inl = get_inliers(*pose, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
+//
+//    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
+//    x1_inlier.reserve(num_inl);
+//    x2_inlier.reserve(num_inl);
+//
+//    if (num_inl <= 5) {
+//        return;
+//    }
+//
+//    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
+//        if (inliers[pt_k]) {
+//            x1_inlier.push_back(x1[pt_k]);
+//            x2_inlier.push_back(x2[pt_k]);
+//        }
+//    }
 
-    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    x1_inlier.reserve(num_inl);
-    x2_inlier.reserve(num_inl);
-
-    if (num_inl <= 5) {
-        return;
-    }
-
-    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-        if (inliers[pt_k]) {
-            x1_inlier.push_back(x1[pt_k]);
-            x2_inlier.push_back(x2[pt_k]);
+    if (opt.use_reproj) {
+        bundle_opt.loss_scale = opt.max_reproj_error;
+        if (opt.optimize_shift) {
+            refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
         }
+        bundle_adjust(x2, X1, pose, bundle_opt);
     }
-
+    bundle_opt.loss_scale = opt.max_epipolar_error;
     refine_relpose(x1, x2, pose, bundle_opt);
+    return;
 }
 } // namespace poselib

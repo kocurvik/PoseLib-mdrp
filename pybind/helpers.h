@@ -41,7 +41,9 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "lo_iterations", ransac_opt.lo_iterations);
     update(input, "use_reldepth", ransac_opt.use_reldepth);
     update(input, "use_p3p", ransac_opt.use_p3p);
-    update(input, "use_monodepth", ransac_opt.use_monodepth);
+    update(input, "use_ours", ransac_opt.use_ours);
+    update(input, "solver_scale", ransac_opt.solver_scale);
+    update(input, "solver_shift", ransac_opt.solver_shift);
     update(input, "use_eigen", ransac_opt.use_eigen);
     update(input, "use_reproj", ransac_opt.use_reproj);
     update(input, "optimize_shift", ransac_opt.optimize_shift);
@@ -99,7 +101,9 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["use_p3p"] = ransac_opt.use_p3p;
     dict["use_reproj"] = ransac_opt.use_reproj;
     dict["optimize_shift"] = ransac_opt.optimize_shift;
-    dict["use_monodepth"] = ransac_opt.use_monodepth;
+    dict["use_ours"] = ransac_opt.use_ours;
+    dict["solver_scale"] = ransac_opt.solver_scale;
+    dict["solver_shift"] = ransac_opt.solver_shift;
     dict["use_eigen"] = ransac_opt.use_eigen;
     dict["use_fundamental"] = ransac_opt.use_fundamental;
     dict["use_4p4d"] = ransac_opt.use_4p4d;

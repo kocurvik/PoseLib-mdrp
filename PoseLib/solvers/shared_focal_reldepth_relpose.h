@@ -16,6 +16,9 @@ namespace poselib {
 void shared_focal_reldepth_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                    const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models,
                                    const RansacOptions &opt);
+
+void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                               const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models);
 }
 
 #endif // POSELIB_SHARED_FOCAL_RELDEPTH_RELPOSE_H

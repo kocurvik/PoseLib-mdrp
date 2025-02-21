@@ -932,7 +932,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
 
     double residual(const ImagePair &image_pair) const {
         const double focal = image_pair.camera1.focal();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/focal, 1 / focal, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -954,7 +954,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
 
     double residual(const ImagePair &image_pair, size_t i) const {
         const double focal = image_pair.camera1.focal();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/focal, 1 / focal, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -974,7 +974,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
     size_t accumulate(const ImagePair &image_pair, Eigen::Matrix<double, 8, 8> &JtJ,
                       Eigen::Matrix<double, 8, 1> &Jtr) const {
         Eigen::Matrix3d R = image_pair.pose.R();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
 
         Eigen::Matrix<double, 2, 8> J;
         Eigen::Matrix<double, 2, 3> Jproj;
@@ -1073,19 +1073,164 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
         pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
-
+        pose_new.shift = image_pair.pose.shift + dp(7, 0);
         Camera camera_new1 =
-            Camera("SIMPLE_PINHOLE_SHIFT",
-                   std::vector<double>{std::max(image_pair.camera1.focal() + dp(6, 0), 0.0), 0.0, 0.0,
-                                       image_pair.camera1.params[3] + dp(7, 0)}, -1, -1);
-        Camera camera_new2 =
             Camera("SIMPLE_PINHOLE",
                    std::vector<double>{std::max(image_pair.camera1.focal() + dp(6, 0), 0.0), 0.0, 0.0}, -1, -1);
-        ImagePair calib_pose_new(pose_new, camera_new1, camera_new2);
+        ImagePair calib_pose_new(pose_new, camera_new1, camera_new1);
         return calib_pose_new;
     }
     typedef ImagePair param_t;
     static constexpr size_t num_params = 8;
+
+  private:
+    const std::vector<Point2D> &x1;
+    const std::vector<Point2D> &x2;
+    const std::vector<Point2D> &sigma;
+    const LossFunction &loss_fn;
+    const ResidualWeightVector &weights;
+};
+template <typename LossFunction, typename ResidualWeightVector = UniformWeightVector>
+class AbsPoseShiftJacobianAccumulator {
+  public:
+    AbsPoseShiftJacobianAccumulator(const std::vector<Point2D> &points2D_1,
+                                               const std::vector<Point2D> &points2D_2,
+                                               const std::vector<Point2D> &sigma,
+                                               const LossFunction &l,
+                                               const ResidualWeightVector &w = ResidualWeightVector())
+        : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), weights(w) {}
+
+    double residual(const CameraPose &pose) const {
+        const double shift = pose.shift;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+        double cost = 0;
+        for (size_t i = 0; i < x1.size(); ++i) {
+            const Eigen::Vector3d Z =  R * (sigma[i](0) + shift) * x1[i].homogeneous().eval() + t;
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z(2) < 0)
+                continue;
+            const double inv_z = 1.0 / Z(2);
+            const double r0 = Z(0) * inv_z - x2[i](0);
+            const double r1 = Z(1) * inv_z - x2[i](1);
+            const double r_squared = r0 * r0 + r1 * r1;
+            cost += weights[i] * loss_fn.loss(r_squared);
+        }
+        return cost;
+    }
+
+    double residual(const CameraPose &pose, size_t i) const {
+        const double shift = pose.shift;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+        const Eigen::Vector3d Z = R * (sigma[i](0) + shift) * x1[i].homogeneous().eval() + t;
+        // Note this assumes points that are behind the camera will stay behind the camera
+        // during the optimization
+        if (Z(2) < 0)
+            return 0;
+        const double inv_z = 1.0 / Z(2);
+//        Eigen::Vector2d p(Z(0) * inv_z * focal, Z(1) * inv_z * focal);
+        const double r0 = Z(0) * inv_z - x2[i](0);
+        const double r1 = Z(1) * inv_z - x2[i](1);
+        const double r_squared = r0 * r0 + r1 * r1;
+        return weights[i] * loss_fn.loss(r_squared);
+    }
+
+    size_t accumulate(const CameraPose &pose, Eigen::Matrix<double, 7, 7> &JtJ,
+                      Eigen::Matrix<double, 7, 1> &Jtr) const {
+        Eigen::Matrix3d R = pose.R();
+        const double shift = pose.shift;
+
+        Eigen::Matrix<double, 2, 7> J;
+        Eigen::Matrix<double, 2, 3> Jproj;
+        Eigen::Matrix<double, 2, 1> J_params;
+        Jproj.setZero();
+
+        size_t num_residuals = 0;
+        for (size_t i = 0; i < x1.size(); ++i) {
+            const Eigen::Vector3d Xo = x1[i].homogeneous().eval();
+            const Eigen::Vector3d Xi = (sigma[i](0) + shift) * Xo;
+            const Eigen::Vector3d Z = R * Xi + pose.t;
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z(2) < 0)
+                continue;
+
+            // Project with intrinsics
+            Eigen::Vector2d zp;
+
+            const double inv_z = 1.0 / Z(2);
+            zp[0] = Z(0) * inv_z;
+            zp[1] = Z(1) * inv_z;
+
+            J_params(0) = Z(0) * inv_z;
+            J_params(1) = Z(1) * inv_z;
+
+            Jproj(0, 0) = inv_z;
+            Jproj(1, 1) = inv_z;
+            Jproj(0, 2) = - Z(0) * inv_z * inv_z;
+            Jproj(1, 2) = - Z(1) * inv_z * inv_z;
+
+            // Compute reprojection error
+            Eigen::Vector2d res = zp - x2[i];
+
+            const double r_squared = res.squaredNorm();
+            const double weight = weights[i] * loss_fn.weight(r_squared);
+
+            if (weight == 0.0) {
+                continue;
+            }
+            num_residuals++;
+
+            // Jacobian w.r.t. rotation w
+            Eigen::Matrix<double, 2, 3> dZ = Jproj * R;
+            J.col(0) = -Xi(2) * dZ.col(1) + Xi(1) * dZ.col(2);
+            J.col(1) = Xi(2) * dZ.col(0) - Xi(0) * dZ.col(2);
+            J.col(2) = -Xi(1) * dZ.col(0) + Xi(0) * dZ.col(1);
+            // Jacobian w.r.t. translation t
+            J.block<2, 3>(0, 3) = Jproj;
+            // Jacobian w.r.t. camera parameters
+//            J.col(6) = J_params;
+            J(0, 6) = inv_z * R.row(0).dot(Xo) - Z(0) * inv_z * inv_z * R.row(2).dot(Xo);
+            J(1, 6) = inv_z * R.row(1).dot(Xo) - Z(1) * inv_z * inv_z * R.row(2).dot(Xo);
+
+//            Eigen::Matrix<double, 1, 7> num_J;
+//            Eigen::Matrix<double, 7, 1> dp;
+//            double eps = 1.0e-6;
+//            for (int j = 0; j < 7; ++j){
+//                dp.setZero();
+//                dp(j, 0) = eps;
+//                CameraPose fwd_image_triplet = step(dp, pose);
+//                CameraPose bcw_image_triplet = step(-dp, pose);
+//                dp.setZero();
+//                num_J(0, j) = (residual(fwd_image_triplet, i) - residual(bcw_image_triplet, i)) / (2 *
+//                eps);
+//            }
+//
+//            std::cout << "Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+//            std::cout << "Num J: " << num_J << std::endl;
+
+            for (int k = 0; k < 7; ++k) {
+                for (int j = 0; j <= k; ++j) {
+                    JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                }
+            }
+            Jtr += J.transpose() * (weight * res);
+        }
+        return num_residuals;
+    }
+
+    CameraPose step(Eigen::Matrix<double, 7, 1> dp, const CameraPose &pose) const {
+        CameraPose pose_new;
+        pose_new.q = quat_step_post(pose.q, dp.block<3, 1>(0, 0));
+        pose_new.t = pose.t + dp.block<3, 1>(3, 0);
+        pose_new.shift = pose.shift + dp(6, 0);
+        return pose_new;
+    }
+    typedef CameraPose param_t;
+    static constexpr size_t num_params = 7;
 
   private:
     const std::vector<Point2D> &x1;
@@ -1281,7 +1426,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     double residual(const ImagePair &image_pair) const {
         const double f1 = image_pair.camera1.focal();
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/ f1, 1 / f1, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -1304,7 +1449,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     double residual(const ImagePair &image_pair, size_t i) const {
         const double f1 = image_pair.camera1.focal();
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/ f1, 1 / f1, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -1333,7 +1478,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
         const double f1 = image_pair.camera1.focal();
         const double inv_f1 = 1.0 / f1;
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.camera1.params[3];
+        const double shift = image_pair.pose.shift;
 
         Eigen::DiagonalMatrix<double, 3> K_inv(inv_f1, inv_f1, 1);
 
@@ -1426,11 +1571,11 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
         pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
+        pose_new.shift = image_pair.pose.shift + dp(8, 0);
 
         Camera camera1_new =
-            Camera("SIMPLE_PINHOLE_SHIFT",
-                   std::vector<double>{std::max(image_pair.camera1.focal() + dp(6, 0), 0.0), 0.0, 0.0,
-                                       image_pair.camera1.params[3] + dp(8, 0)}, -1, -1);
+            Camera("SIMPLE_PINHOLE",
+                   std::vector<double>{std::max(image_pair.camera1.focal() + dp(6, 0), 0.0), 0.0, 0.0}, -1, -1);
         Camera camera2_new =
             Camera("SIMPLE_PINHOLE",
                    std::vector<double>{std::max(image_pair.camera2.focal() + dp(7, 0), 0.0), 0.0, 0.0}, -1, -1);

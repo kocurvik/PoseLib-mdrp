@@ -98,7 +98,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
   public:
     SharedFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                               const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz((ransac_opt.use_p3p or ransac_opt.use_reldepth) ? 3 : 4),
+        : sample_sz((ransac_opt.use_ours and ransac_opt.solver_scale and ransac_opt.solver_shift) ? 4 : 3),
           num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1),
           x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
@@ -136,8 +136,8 @@ class VaryingFocalMonodepthRelativePoseEstimator {
   public:
     VaryingFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                                const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_p3p ? 3 : 4)), num_data(points2D_1.size()),
-          opt(ransac_opt), x1(points2D_1), x2(points2D_2), sigma(sigma),
+        : sample_sz(ransac_opt.use_fundamental ? 7 :(ransac_opt.use_ours and (!ransac_opt.solver_scale and !ransac_opt.solver_shift) ? 3 : 4)),
+          num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1), x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);
         x2s.resize(sample_sz);
@@ -253,7 +253,7 @@ class RelativePoseMonoDepthEstimator {
         if (opt.use_reproj){
             X1.resize(num_data);
             for (size_t i = 0; i < num_data; ++i)
-                X1[i] = x1[i].homogeneous();
+                X1[i] = sigma[i](0) * x1[i].homogeneous();
         }
     }
     void generate_models(std::vector<CameraPose> *models);

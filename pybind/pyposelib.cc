@@ -485,7 +485,10 @@ std::pair<CameraPose, py::dict> estimate_relative_pose_w_mono_depth_wrapper(cons
     RansacOptions ransac_opt;
     update_ransac_options(ransac_opt_dict, ransac_opt);
     BundleOptions bundle_opt;
-    bundle_opt.loss_scale = 0.5 * ransac_opt.max_epipolar_error;
+    if (ransac_opt.use_reproj)
+        bundle_opt.loss_scale = 0.5 * ransac_opt.max_reproj_error;
+    else
+        bundle_opt.loss_scale = 0.5 * ransac_opt.max_epipolar_error;
     update_bundle_options(bundle_opt_dict, bundle_opt);
     CameraPose pose;
     std::vector<char> inlier_mask;
