@@ -78,13 +78,18 @@ Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
             continue;
         roots[n_roots++] = D(i).real();
     }
-
+    int m = 0;
     Eigen::MatrixXd sols(3, n_roots);
     for (int ii = 0; ii < n_roots; ii++) {
+        double ss = k6*roots[ii]*roots[ii] + k7*roots[ii] + k8;
+        if (ss < 0.01)
+            continue;
         sols(1,ii) = roots[ii];
         sols(0,ii) = k6*roots[ii]*roots[ii] + k7*roots[ii] + k8;
         sols(2,ii) = (k3*roots[ii]*roots[ii] + k4*roots[ii] + k5)/sols(0,ii);
+        ++m;
     }
+    sols.conservativeResize(3, m);
     return sols;
 }
 int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
