@@ -569,6 +569,7 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
         bundle_opt.loss_scale = opt.max_reproj_error;
         if (opt.optimize_shift) {
             refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
+            return;
         }
         bundle_adjust(x2, X1, pose, bundle_opt);
         return;
