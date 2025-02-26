@@ -346,9 +346,9 @@ void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std
           d[10], d[12], 1.0,
           d[17], d[20], d[14];
 
-    Eigen::MatrixXd C1(3, 2);
-    C1 << d[0]-d[9],  d[3]-d[11], d[1]-d[10],  d[4]-d[12];
-            0,     0, d[9],     d[11];
+    Eigen::MatrixXd C1(3, 4);
+    C1 << d[0]-d[9],  d[3]-d[11], d[1]-d[10],  d[4]-d[12],
+            0,     0, d[9],     d[11],
             d[15]-d[9], d[18]-d[11], d[16]-d[10], d[19]-d[12];
 
     Eigen::MatrixXd C2 = -C0.partialPivLu().solve(C1);
@@ -359,7 +359,7 @@ void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std
           C2(0,0), C2(0,1), C2(0,2), C2(0,3),
           C2(1,0), C2(1,1), C2(1,2), C2(1,3);
 
-    Eigen::EigenSolver<Eigen::Matrix<double, 2, 2>> es(AM, false);
+    Eigen::EigenSolver<Eigen::Matrix<double, 4, 4>> es(AM, false);
     Eigen::ArrayXcd D = es.eigenvalues();
 
     for (int k = 0; k < 4; ++k) {
@@ -373,9 +373,9 @@ void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std
         A0 << (d[3]-d[11])*d3*d3 + (d[4]-d[12])*d3 + d[5], d[7],
                 d[12] + d[11]*d3, 1.0;
 
-        Eigen::Vector2d A1;
+        Eigen::VectorXd A1(2);
         A1 << (d[0]-d[9])*d3*d3 + (d[1]-d[10])*d3 + d[2], d[10] + d[9]*d3;
-        Eigen::Vector2d A2 = -A0.partialPivLu().solve(A1);
+        Eigen::VectorXd A2 = -A0.partialPivLu().solve(A1);
 
         if (A2(0) < 0.0)
             continue;
