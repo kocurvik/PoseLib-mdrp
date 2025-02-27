@@ -42,6 +42,8 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "use_reldepth", ransac_opt.use_reldepth);
     update(input, "use_p3p", ransac_opt.use_p3p);
     update(input, "use_ours", ransac_opt.use_ours);
+    update(input, "use_madpose", ransac_opt.use_madpose);
+    update(input, "use_madpose", ransac_opt.use_ours);
     update(input, "solver_scale", ransac_opt.solver_scale);
     update(input, "solver_shift", ransac_opt.solver_shift);
     update(input, "use_eigen", ransac_opt.use_eigen);
@@ -105,6 +107,7 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["solver_scale"] = ransac_opt.solver_scale;
     dict["solver_shift"] = ransac_opt.solver_shift;
     dict["use_eigen"] = ransac_opt.use_eigen;
+    dict["use_madpose"] = ransac_opt.use_madpose;
     dict["use_fundamental"] = ransac_opt.use_fundamental;
     dict["use_4p4d"] = ransac_opt.use_4p4d;
     dict["all_permutations"] = ransac_opt.all_permutations;

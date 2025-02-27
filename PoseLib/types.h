@@ -55,6 +55,7 @@ struct RansacOptions {
     bool use_reldepth = false;
     bool use_p3p = false;
     bool use_ours = false;
+    bool use_madpose = false;
     bool solver_scale = false;
     bool solver_shift = false;
     bool use_eigen = false;
