@@ -152,10 +152,8 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
     }
 
     if (opt.use_madpose){
-        if (opt.solver_scale and opt.solver_shift){
-            // TODO @Yaqing
-            return;
-        }
+        shared_focal_monodepth_madpose(x1s, x2s, monodepth, models);
+        return;
     }
 
     throw std::runtime_error("No solver called");

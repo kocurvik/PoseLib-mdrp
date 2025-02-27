@@ -43,7 +43,6 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "use_p3p", ransac_opt.use_p3p);
     update(input, "use_ours", ransac_opt.use_ours);
     update(input, "use_madpose", ransac_opt.use_madpose);
-    update(input, "use_madpose", ransac_opt.use_ours);
     update(input, "solver_scale", ransac_opt.solver_scale);
     update(input, "solver_shift", ransac_opt.solver_shift);
     update(input, "use_eigen", ransac_opt.use_eigen);

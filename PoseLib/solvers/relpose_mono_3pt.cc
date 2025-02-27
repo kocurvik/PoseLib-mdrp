@@ -123,11 +123,15 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
 
         Eigen::Vector3d v1 = s * (depth2[0] + v) * x2h[0] - s * (depth2[1] + v) * x2h[1];
         Eigen::Vector3d v2 = s * (depth2[0] + v) * x2h[0] - s * (depth2[2] + v) * x2h[2];
+        if (depth2[0] + v <=0 || depth2[1] + v <=0 || depth2[2] + v <=0)
+            continue;
         Eigen::Matrix3d Y;
         Y << v1, v2, v1.cross(v2);
 
         Eigen::Vector3d u1 = (depth1[0] + u) * x1h[0] - (depth1[1] + u) * x1h[1];
         Eigen::Vector3d u2 = (depth1[0] + u) * x1h[0] - (depth1[2] + u) * x1h[2];
+        if (depth1[0] + u <=0 || depth1[1] + u <=0 || depth1[2] + u <=0)
+            continue;
         Eigen::Matrix3d X;
         X << u1, u2, u1.cross(u2);
         X = X.inverse().eval();

@@ -586,11 +586,15 @@ void varying_focal_monodepth_relpose_ours(const std::vector<Eigen::Vector2d> &x1
 
         Eigen::Vector3d v1 = s * (depth2[0] + v) * K2inv*x2h[0] - s * (depth2[1] + v) * K2inv*x2h[1];
         Eigen::Vector3d v2 = s * (depth2[0] + v) * K2inv*x2h[0] - s * (depth2[2] + v) * K2inv*x2h[2];
+        if (depth2[0] + v <= 0 || depth2[1] + v <= 0 || depth2[2] + v <= 0)
+            continue;
         Eigen::Matrix3d Y;
         Y << v1, v2, v1.cross(v2);
 
         Eigen::Vector3d u1 = (depth1[0] + u) * K1inv*x1h[0] - (depth1[1] + u) * K1inv*x1h[1];
         Eigen::Vector3d u2 = (depth1[0] + u) * K1inv*x1h[0] - (depth1[2] + u) * K1inv*x1h[2];
+        if (depth1[0] + u <= 0 || depth1[1] + u <= 0 || depth1[2] + u <= 0)
+            continue;
         Eigen::Matrix3d X;
         X << u1, u2, u1.cross(u2);
         X = X.inverse().eval();

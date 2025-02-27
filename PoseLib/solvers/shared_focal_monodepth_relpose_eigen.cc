@@ -3,7 +3,7 @@
 //
 
 #include "shared_focal_monodepth_relpose_eigen.h"
-
+#include <iostream>
 #include "PoseLib/misc/univariate.h"
 namespace poselib {
 
@@ -69,10 +69,6 @@ Eigen::MatrixXd shared_focal_monodepth_relpose_gb_impl(Eigen::VectorXd d) {
     for (int i = 0; i < 8; i++) {
         AM.row(i) = RR.row(AM_ind[i]);
     }
-
-
-
-
 
     Eigen::EigenSolver<Eigen::MatrixXd> es(AM);
     Eigen::ArrayXcd D = es.eigenvalues();
@@ -395,7 +391,7 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
                                     const std::vector<Eigen::Vector2d> &sigma, bool use_eigen,
                                     std::vector<ImagePair> *models) {
     models->clear();
-    models->reserve(4);
+    models->reserve(8);
     std::vector<Eigen::Vector3d> x1h(4);
     std::vector<Eigen::Vector3d> x2h(4);
     for (int i = 0; i < 4; ++i) {
@@ -416,6 +412,7 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
         depth1[3], depth2[0], depth2[1], depth2[2], depth1[3];
 
     Eigen::MatrixXd sols;
+
     if (use_eigen) {
         sols = shared_focal_monodepth_relpose_eigen_impl(datain);
     } else {
@@ -433,16 +430,22 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
 
         Eigen::Vector3d v1 = s * (depth2[0] + v) * Kinv * x2h[0] - s * (depth2[1] + v) * Kinv * x2h[1];
         Eigen::Vector3d v2 = s * (depth2[0] + v) * Kinv * x2h[0] - s * (depth2[2] + v) * Kinv * x2h[2];
+        if (depth2[0] + v <= 0 || depth2[1] + v <= 0 || depth2[2] + v <= 0)
+            continue;
         Eigen::Matrix3d Y;
         Y << v1, v2, v1.cross(v2);
 
         Eigen::Vector3d u1 = (depth1[0] + u) * Kinv * x1h[0] - (depth1[1] + u) * Kinv * x1h[1];
         Eigen::Vector3d u2 = (depth1[0] + u) * Kinv * x1h[0] - (depth1[2] + u) * Kinv * x1h[2];
+        if (depth1[0] + u <= 0 || depth1[1] + u <= 0 || depth1[2] + u <= 0)
+            continue;
         Eigen::Matrix3d X;
         X << u1, u2, u1.cross(u2);
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
+        double det_rot = rot.determinant();
+        rot /= std::cbrt(det_rot);
 
         Eigen::Vector3d trans1 = (depth1[0] + u) * rot * Kinv * x1h[0];
         Eigen::Vector3d trans2 = s * (depth2[0] + v) * Kinv * x2h[0];
@@ -455,5 +458,229 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
         models->emplace_back(pose, camera1, camera2);
     }
 }
+
+void shared_focal_monodepth_madpose(const std::vector<Eigen::Vector2d> &xa, const std::vector<Eigen::Vector2d> &xb,
+                                    const std::vector<Eigen::Vector2d> &sigma, std::vector<ImagePair> *models) {
+    models->clear();
+    models->reserve(8);
+
+    Eigen::Matrix<double, 4, 3> x1;
+    Eigen::Matrix<double, 4, 3> x2;
+
+
+    for (int i = 0; i < 4; ++i) {
+        x1.row(i) = xa[i].homogeneous().transpose();
+        x2.row(i) = xb[i].homogeneous().transpose();
+    }
+
+    Eigen::Vector4d d1;
+    Eigen::Vector4d d2;
+    for (int i = 0; i < 4; ++i) {
+        d1(i) = sigma[i][0];
+        d2(i) = sigma[i][1];
+    }
+
+    Eigen::VectorXd coeffs = Eigen::VectorXd::Zero(32);
+
+    coeffs[0] = 2 * x2(0, 0) * x2(1, 0) + 2 * x2(0, 1) * x2(1, 1) - x2(0, 0) * x2(0, 0) - x2(0, 1) * x2(0, 1) -
+                x2(1, 0) * x2(1, 0) - x2(1, 1) * x2(1, 1);
+    coeffs[1] = x1(0, 0) * x1(0, 0) - 2 * x1(0, 1) * x1(1, 1) - 2 * x1(0, 0) * x1(1, 0) + x1(0, 1) * x1(0, 1) +
+                x1(1, 0) * x1(1, 0) + x1(1, 1) * x1(1, 1);
+    coeffs[2] = 2 * d2(0) * x2(0, 0) * x2(1, 0) - 2 * d2(0) * x2(0, 1) * x2(0, 1) - 2 * d2(1) * x2(1, 0) * x2(1, 0) -
+                2 * d2(1) * x2(1, 1) * x2(1, 1) - 2 * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(1) * x2(0, 0) * x2(1, 0) +
+                2 * d2(0) * x2(0, 1) * x2(1, 1) + 2 * d2(1) * x2(0, 1) * x2(1, 1);
+    coeffs[3] = 2 * d2(0) * d2(1) * x2(0, 0) * x2(1, 0) - d2(0) * d2(0) * x2(0, 1) * x2(0, 1) -
+                d2(1) * d2(1) * x2(1, 0) * x2(1, 0) - d2(1) * d2(1) * x2(1, 1) * x2(1, 1) -
+                d2(0) * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(0) * d2(1) * x2(0, 1) * x2(1, 1);
+    coeffs[4] = 2 * d1(0) * x1(0, 0) * x1(0, 0) + 2 * d1(0) * x1(0, 1) * x1(0, 1) + 2 * d1(1) * x1(1, 0) * x1(1, 0) +
+                2 * d1(1) * x1(1, 1) * x1(1, 1) - 2 * d1(0) * x1(0, 0) * x1(1, 0) - 2 * d1(1) * x1(0, 0) * x1(1, 0) -
+                2 * d1(0) * x1(0, 1) * x1(1, 1) - 2 * d1(1) * x1(0, 1) * x1(1, 1);
+    coeffs[5] = 2 * d2(0) * d2(1) - d2(0) * d2(0) - d2(1) * d2(1);
+    coeffs[6] = d1(0) * d1(0) * x1(0, 0) * x1(0, 0) + d1(0) * d1(0) * x1(0, 1) * x1(0, 1) +
+                d1(1) * d1(1) * x1(1, 0) * x1(1, 0) + d1(1) * d1(1) * x1(1, 1) * x1(1, 1) -
+                2 * d1(0) * d1(1) * x1(0, 0) * x1(1, 0) - 2 * d1(0) * d1(1) * x1(0, 1) * x1(1, 1);
+    coeffs[7] = d1(0) * d1(0) - 2 * d1(0) * d1(1) + d1(1) * d1(1);
+    coeffs[8] = 2 * x2(0, 0) * x2(2, 0) + 2 * x2(0, 1) * x2(2, 1) - x2(0, 0) * x2(0, 0) - x2(0, 1) * x2(0, 1) -
+                x2(2, 0) * x2(2, 0) - x2(2, 1) * x2(2, 1);
+    coeffs[9] = x1(0, 0) * x1(0, 0) - 2 * x1(0, 1) * x1(2, 1) - 2 * x1(0, 0) * x1(2, 0) + x1(0, 1) * x1(0, 1) +
+                x1(2, 0) * x1(2, 0) + x1(2, 1) * x1(2, 1);
+    coeffs[10] = 2 * d2(0) * x2(0, 0) * x2(2, 0) - 2 * d2(0) * x2(0, 1) * x2(0, 1) - 2 * d2(2) * x2(2, 0) * x2(2, 0) -
+                 2 * d2(2) * x2(2, 1) * x2(2, 1) - 2 * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(0) * x2(0, 1) * x2(2, 1) +
+                 2 * d2(2) * x2(0, 0) * x2(2, 0) + 2 * d2(2) * x2(0, 1) * x2(2, 1);
+    coeffs[11] = 2 * d2(0) * d2(2) * x2(0, 0) * x2(2, 0) - d2(0) * d2(0) * x2(0, 1) * x2(0, 1) -
+                 d2(2) * d2(2) * x2(2, 0) * x2(2, 0) - d2(2) * d2(2) * x2(2, 1) * x2(2, 1) -
+                 d2(0) * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(0) * d2(2) * x2(0, 1) * x2(2, 1);
+    coeffs[12] = 2 * d1(0) * x1(0, 0) * x1(0, 0) + 2 * d1(0) * x1(0, 1) * x1(0, 1) + 2 * d1(2) * x1(2, 0) * x1(2, 0) +
+                 2 * d1(2) * x1(2, 1) * x1(2, 1) - 2 * d1(0) * x1(0, 0) * x1(2, 0) - 2 * d1(0) * x1(0, 1) * x1(2, 1) -
+                 2 * d1(2) * x1(0, 0) * x1(2, 0) - 2 * d1(2) * x1(0, 1) * x1(2, 1);
+    coeffs[13] = 2 * d2(0) * d2(2) - d2(0) * d2(0) - d2(2) * d2(2);
+    coeffs[14] = d1(0) * d1(0) * x1(0, 0) * x1(0, 0) + d1(0) * d1(0) * x1(0, 1) * x1(0, 1) +
+                 d1(2) * d1(2) * x1(2, 0) * x1(2, 0) + d1(2) * d1(2) * x1(2, 1) * x1(2, 1) -
+                 2 * d1(0) * d1(2) * x1(0, 0) * x1(2, 0) - 2 * d1(0) * d1(2) * x1(0, 1) * x1(2, 1);
+    coeffs[15] = d1(0) * d1(0) - 2 * d1(0) * d1(2) + d1(2) * d1(2);
+    coeffs[16] = 2 * x2(1, 0) * x2(2, 0) + 2 * x2(1, 1) * x2(2, 1) - x2(1, 0) * x2(1, 0) - x2(1, 1) * x2(1, 1) -
+                 x2(2, 0) * x2(2, 0) - x2(2, 1) * x2(2, 1);
+    coeffs[17] = x1(1, 0) * x1(1, 0) - 2 * x1(1, 1) * x1(2, 1) - 2 * x1(1, 0) * x1(2, 0) + x1(1, 1) * x1(1, 1) +
+                 x1(2, 0) * x1(2, 0) + x1(2, 1) * x1(2, 1);
+    coeffs[18] = 2 * d2(1) * x2(1, 0) * x2(2, 0) - 2 * d2(1) * x2(1, 1) * x2(1, 1) - 2 * d2(2) * x2(2, 0) * x2(2, 0) -
+                 2 * d2(2) * x2(2, 1) * x2(2, 1) - 2 * d2(1) * x2(1, 0) * x2(1, 0) + 2 * d2(2) * x2(1, 0) * x2(2, 0) +
+                 2 * d2(1) * x2(1, 1) * x2(2, 1) + 2 * d2(2) * x2(1, 1) * x2(2, 1);
+    coeffs[19] = 2 * d2(1) * d2(2) * x2(1, 0) * x2(2, 0) - d2(1) * d2(1) * x2(1, 1) * x2(1, 1) -
+                 d2(2) * d2(2) * x2(2, 0) * x2(2, 0) - d2(2) * d2(2) * x2(2, 1) * x2(2, 1) -
+                 d2(1) * d2(1) * x2(1, 0) * x2(1, 0) + 2 * d2(1) * d2(2) * x2(1, 1) * x2(2, 1);
+    coeffs[20] = 2 * d1(1) * x1(1, 0) * x1(1, 0) + 2 * d1(1) * x1(1, 1) * x1(1, 1) + 2 * d1(2) * x1(2, 0) * x1(2, 0) +
+                 2 * d1(2) * x1(2, 1) * x1(2, 1) - 2 * d1(1) * x1(1, 0) * x1(2, 0) - 2 * d1(2) * x1(1, 0) * x1(2, 0) -
+                 2 * d1(1) * x1(1, 1) * x1(2, 1) - 2 * d1(2) * x1(1, 1) * x1(2, 1);
+    coeffs[21] = 2 * d2(1) * d2(2) - d2(1) * d2(1) - d2(2) * d2(2);
+    coeffs[22] = d1(1) * d1(1) * x1(1, 0) * x1(1, 0) + d1(1) * d1(1) * x1(1, 1) * x1(1, 1) +
+                 d1(2) * d1(2) * x1(2, 0) * x1(2, 0) + d1(2) * d1(2) * x1(2, 1) * x1(2, 1) -
+                 2 * d1(1) * d1(2) * x1(1, 0) * x1(2, 0) - 2 * d1(1) * d1(2) * x1(1, 1) * x1(2, 1);
+    coeffs[23] = d1(1) * d1(1) - 2 * d1(1) * d1(2) + d1(2) * d1(2);
+    coeffs[24] = 2 * x2(0, 0) * x2(3, 0) + 2 * x2(0, 1) * x2(3, 1) - x2(0, 0) * x2(0, 0) - x2(0, 1) * x2(0, 1) -
+                 x2(3, 0) * x2(3, 0) - x2(3, 1) * x2(3, 1);
+    coeffs[25] = x1(0, 0) * x1(0, 0) - 2 * x1(0, 1) * x1(3, 1) - 2 * x1(0, 0) * x1(3, 0) + x1(0, 1) * x1(0, 1) +
+                 x1(3, 0) * x1(3, 0) + x1(3, 1) * x1(3, 1);
+    coeffs[26] = 2 * d2(0) * x2(0, 0) * x2(3, 0) - 2 * d2(0) * x2(0, 1) * x2(0, 1) - 2 * d2(3) * x2(3, 0) * x2(3, 0) -
+                 2 * d2(3) * x2(3, 1) * x2(3, 1) - 2 * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(0) * x2(0, 1) * x2(3, 1) +
+                 2 * d2(3) * x2(0, 0) * x2(3, 0) + 2 * d2(3) * x2(0, 1) * x2(3, 1);
+    coeffs[27] = 2 * d2(0) * d2(3) * x2(0, 0) * x2(3, 0) - d2(0) * d2(0) * x2(0, 1) * x2(0, 1) -
+                 d2(3) * d2(3) * x2(3, 0) * x2(3, 0) - d2(3) * d2(3) * x2(3, 1) * x2(3, 1) -
+                 d2(0) * d2(0) * x2(0, 0) * x2(0, 0) + 2 * d2(0) * d2(3) * x2(0, 1) * x2(3, 1);
+    coeffs[28] = 2 * d1(0) * x1(0, 0) * x1(0, 0) + 2 * d1(0) * x1(0, 1) * x1(0, 1) + 2 * d1(3) * x1(3, 0) * x1(3, 0) +
+                 2 * d1(3) * x1(3, 1) * x1(3, 1) - 2 * d1(0) * x1(0, 0) * x1(3, 0) - 2 * d1(0) * x1(0, 1) * x1(3, 1) -
+                 2 * d1(3) * x1(0, 0) * x1(3, 0) - 2 * d1(3) * x1(0, 1) * x1(3, 1);
+    coeffs[29] = 2 * d2(0) * d2(3) - d2(0) * d2(0) - d2(3) * d2(3);
+    coeffs[30] = d1(0) * d1(0) * x1(0, 0) * x1(0, 0) + d1(0) * d1(0) * x1(0, 1) * x1(0, 1) +
+                 d1(3) * d1(3) * x1(3, 0) * x1(3, 0) + d1(3) * d1(3) * x1(3, 1) * x1(3, 1) -
+                 2 * d1(0) * d1(3) * x1(0, 0) * x1(3, 0) - 2 * d1(0) * d1(3) * x1(0, 1) * x1(3, 1);
+    coeffs[31] = d1(0) * d1(0) - 2 * d1(0) * d1(3) + d1(3) * d1(3);
+
+    const std::vector<int> coeff_ind0 = {
+        0,  8,  16, 24, 1,  9,  17, 25, 2,  10, 0,  8,  16, 18, 24, 26, 0,  8,  16, 24, 0,  8,  16, 24, 0,  8,  16, 24,
+        1,  9,  17, 25, 1,  9,  17, 25, 3,  11, 2,  10, 18, 19, 26, 27, 4,  12, 2,  1,  10, 9,  20, 18, 17, 28, 26, 25,
+        1,  9,  17, 25, 2,  10, 8,  0,  16, 18, 24, 26, 2,  10, 0,  16, 18, 8,  24, 26, 8,  0,  16, 24, 5,  13, 21, 29,
+        3,  11, 19, 27, 4,  3,  12, 11, 20, 9,  28, 1,  19, 17, 27, 25, 4,  12, 1,  17, 20, 9,  25, 28, 3,  11, 10, 2,
+        18, 19, 26, 27, 6,  14, 4,  3,  12, 11, 2,  22, 18, 19, 20, 10, 26, 30, 28, 27, 4,  12, 9,  20, 1,  17, 25, 28,
+        10, 2,  18, 0,  16, 24, 26, 8,  5,  13, 21, 29, 11, 3,  19, 27, 6,  14, 22, 12, 3,  30, 4,  19, 20, 11, 27, 28,
+        6,  14, 4,  20, 22, 12, 1,  17, 25, 28, 30, 9,  6,  14, 11, 3,  19, 22, 2,  18, 26, 27, 30, 10, 6,  14, 12, 22,
+        4,  20, 28, 30, 14, 6,  22, 3,  19, 27, 30, 11, 14, 6,  22, 30, 5,  13, 21, 29, 6,  22, 14, 4,  20, 28, 30, 12,
+        7,  15, 23, 31, 5,  13, 21, 29, 7,  15, 23, 31, 7,  15, 5,  13, 23, 21, 31, 29};
+    const std::vector<int> coeff_ind1 = {7,  23, 31, 15, 6,  22, 30, 14, 7,  23, 15, 31, 7,  15, 23,
+                                         5,  31, 21, 13, 29, 15, 7,  23, 31, 7,  15, 13, 5,  21, 23,
+                                         29, 31, 15, 7,  23, 5,  21, 29, 31, 13, 13, 5,  21, 29};
+    const std::vector<int> ind0 = {
+        0,    1,    14,   30,   36,   37,   50,   66,   72,   73,   74,   78,   80,   86,   87,   102,  111,  115,
+        126,  139,  148,  153,  167,  177,  185,  190,  199,  215,  218,  222,  224,  231,  255,  259,  270,  283,
+        288,  289,  290,  294,  296,  302,  303,  318,  324,  325,  327,  328,  331,  333,  338,  342,  347,  354,
+        355,  357,  365,  370,  379,  395,  400,  405,  407,  412,  418,  419,  428,  429,  437,  442,  444,  449,
+        451,  456,  461,  467,  481,  488,  489,  496,  504,  505,  518,  534,  542,  546,  548,  555,  578,  579,
+        582,  583,  584,  587,  591,  592,  594,  598,  607,  608,  615,  619,  624,  629,  630,  636,  641,  643,
+        652,  657,  659,  664,  670,  671,  680,  681,  684,  685,  688,  689,  693,  694,  696,  698,  701,  703,
+        707,  708,  713,  714,  717,  719,  725,  730,  733,  739,  740,  741,  748,  755,  769,  776,  777,  781,
+        782,  783,  784,  790,  796,  801,  815,  825,  839,  844,  850,  860,  866,  870,  872,  875,  876,  879,
+        880,  881,  886,  888,  893,  896,  903,  907,  912,  917,  918,  924,  925,  926,  927,  929,  931,  934,
+        940,  945,  949,  956,  957,  959,  961,  962,  963,  964,  969,  970,  977,  982,  985,  991,  992,  993,
+        1000, 1007, 1019, 1024, 1030, 1033, 1034, 1035, 1040, 1042, 1057, 1064, 1065, 1072, 1082, 1086, 1088, 1095,
+        1128, 1133, 1140, 1141, 1142, 1143, 1145, 1150, 1155, 1159, 1170, 1183, 1191, 1195, 1206, 1219, 1229, 1234,
+        1243, 1259, 1260, 1261, 1265, 1270, 1274, 1279, 1290, 1295};
+    const std::vector<int> ind1 = {25,  26,  27,  34,  61,  62,  63,  70,  84,  89,  96,  101, 110, 114, 116,
+                                   120, 123, 125, 132, 137, 157, 164, 165, 172, 184, 189, 193, 200, 201, 203,
+                                   208, 213, 227, 232, 238, 241, 242, 243, 248, 250, 263, 268, 274, 284};
+    Eigen::MatrixXd C0 = Eigen::MatrixXd::Zero(36, 36);
+    Eigen::MatrixXd C1 = Eigen::MatrixXd::Zero(36, 8);
+
+    for (size_t k = 0; k < ind0.size(); k++) {
+        int i = ind0[k] % 36;
+        int j = ind0[k] / 36;
+        C0(i, j) = coeffs[coeff_ind0[k]];
+    }
+
+    for (size_t k = 0; k < ind1.size(); k++) {
+        int i = ind1[k] % 36;
+        int j = ind1[k] / 36;
+        C1(i, j) = coeffs[coeff_ind1[k]];
+    }
+
+    Eigen::MatrixXd C2 = C0.fullPivHouseholderQr().solve(C1);
+    
+    Eigen::Matrix<double, 8, 8> AM;
+    AM << Eigen::RowVector<double, 8>(0, 0, 1, 0, 0, 0, 0, 0), -C2.row(31), -C2.row(32), -C2.row(33), -C2.row(34),
+        -C2.row(35), Eigen::RowVector<double, 8>(0, 0, 0, 1, 0, 0, 0, 0), -C2.row(30);
+
+    Eigen::EigenSolver<Eigen::Matrix<double, 8, 8>> es(AM);
+    Eigen::Vector<std::complex<double>, 8> D = es.eigenvalues();
+    Eigen::Matrix<std::complex<double>, 8, 8> V = es.eigenvectors();
+
+    Eigen::MatrixXcd sols = Eigen::MatrixXcd(8, 4);
+    sols.col(0) = V.row(6).array() / V.row(0).array();
+    sols.col(1) = D;
+    sols.col(2) = V.row(4).array() / V.row(0).array();
+    sols.col(3) = V.row(1).array() / V.row(0).array();
+
+    std::vector<Eigen::Vector<double, 5>> solutions;
+    for (int i = 0; i < sols.rows(); i++) {
+        if (D[i].imag() != 0)
+            continue;
+        if (sols(i, 3).real() < 0)
+            continue;
+        double a2 = std::sqrt(sols(i, 0).real());
+        double b1 = sols(i, 1).real(), b2 = sols(i, 2).real();
+        Eigen::Vector<double, 5> sol;
+        sol << 1.0, b1, a2, b2 * a2, 1.0 / std::sqrt(sols(i, 3).real());
+        solutions.push_back(sol);
+    }
+
+    Eigen::Vector4d depth_x = d1;
+    Eigen::Vector4d depth_y = d2;
+
+    for (auto &sol : solutions) {
+        Eigen::Vector4d dd1, dd2;
+
+        dd1 = depth_x.array() + sol(1);
+        dd2 = depth_y.array() * sol(2) + sol(3);
+
+        if (dd1.minCoeff() <= 0 || dd2.minCoeff() <= 0)
+            continue;
+
+        double focal = sol(4);
+        Eigen::MatrixXd xu = x1.transpose();
+        Eigen::MatrixXd yu = x2.transpose();
+        xu.block<2, 4>(0, 0) /= focal;
+        yu.block<2, 4>(0, 0) /= focal;
+
+        Eigen::MatrixXd X = xu.array().rowwise() * dd1.transpose().array();
+        Eigen::MatrixXd Y = yu.array().rowwise() * dd2.transpose().array();
+
+        Eigen::Vector3d centroid_X = X.rowwise().mean();
+        Eigen::Vector3d centroid_Y = Y.rowwise().mean();
+
+        Eigen::MatrixXd X_centered = X.colwise() - centroid_X;
+        Eigen::MatrixXd Y_centered = Y.colwise() - centroid_Y;
+
+        Eigen::Matrix3d S = Y_centered * X_centered.transpose();
+
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(S, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::Matrix3d U = svd.matrixU();
+        Eigen::Matrix3d V = svd.matrixV();
+
+        if (U.determinant() * V.determinant() < 0) {
+            U.col(2) *= -1;
+        }
+        Eigen::Matrix3d R = U * V.transpose();
+        Eigen::Vector3d t = centroid_Y - R * centroid_X;
+
+        double b2 = sol(1), b1 = sol(3), f = sol(4);
+        std::swap(b1, b2);
+
+        CameraPose pose = CameraPose(R, t);
+        pose.shift = b1;
+        Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+        Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
+        models->emplace_back(pose, camera1, camera2);
+        
+    }
+
+}
+
 } //namespace poselib
 
