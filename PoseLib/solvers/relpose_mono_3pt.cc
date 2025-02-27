@@ -67,7 +67,7 @@ Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
     CC << 0, 1, 0, 0,
         0, 0, 1, 0,
         0, 0, 0, 1,
-        c0, c1, c2, c3;
+        -c0, -c1, -c2, -c3;
 
     Eigen::EigenSolver<Eigen::Matrix4d> es(CC, false);
     Eigen::Matrix<std::complex<double>, 4, 1> D = es.eigenvalues();
