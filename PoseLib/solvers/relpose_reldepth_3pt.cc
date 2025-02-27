@@ -69,6 +69,8 @@ int essential_3pt_rel_depth_impl(const std::vector<Eigen::Vector2d> &x1, const s
             X = X.inverse().eval();
 
             Eigen::Matrix3d rot = Y * X;
+            double det_rot = rot.determinant();
+            rot /= std::cbrt(det_rot);
 
             CameraPose pose;
             Eigen::Quaterniond q_flip(rot);

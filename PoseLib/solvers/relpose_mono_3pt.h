@@ -6,5 +6,8 @@
 namespace poselib {
 int essential_3pt_mono_depth(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose);
+
+int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
+                            const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose);
 }; // namespace poselib
 #endif

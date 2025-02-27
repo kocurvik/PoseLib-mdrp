@@ -325,6 +325,8 @@ void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
+        double det_rot = rot.determinant();
+        rot /= std::cbrt(det_rot);
 
         Eigen::Vector3d trans1 = (depth1[0]) * rot * Kinv * x1h[0];
         Eigen::Vector3d trans2 = s * (depth2[0]) * Kinv * x2h[0];

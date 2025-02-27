@@ -260,10 +260,8 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
     }
 
     if (opt.use_madpose){
-        if (opt.solver_scale and opt.solver_shift){
-            // TODO @Yaqing
-            return;
-        }
+        varying_focal_monodepth_relpose_madpose(x1s, x2s, monodepth, models);
+        return;
     }
 
     throw std::runtime_error("No solver called");
@@ -515,15 +513,13 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
     }
 
     if (opt.use_madpose){
-        if (opt.solver_scale and opt.solver_shift){
-            // TODO @Yaqing
-            return;
+        for (size_t k = 0; k < sample_sz; ++k) {
+            x1s[k] = x1[sample[k]];
+            x2s[k] = x2[sample[k]];
+            sigmas[k] = mono_depth[sample[k]];
         }
-
-        if (opt.solver_scale and !opt.solver_shift){
-            // TODO @Yaqing
-            return;
-        }
+        essential_3pt_mono_madpose(x1s, x2s, sigmas, models);
+        return;
     }
 
     throw std::runtime_error("No solver called");

@@ -327,10 +327,8 @@ void shared_focal_abspose_single_perm(const std::vector<Eigen::Vector3d> &x1h, c
             X = X.inverse().eval();
 
             Eigen::Matrix3d rot = Y * X;
-            // if rot is less than 5 deg
-            //            if ((rot.trace() - 1) > 1.99238939618)
-            //                if (f < opt.min_focal_1 or f > opt.max_focal_1)
-            //                    continue;
+            double det_rot = rot.determinant();
+            rot /= std::cbrt(det_rot);
 
             Eigen::Vector3d trans = X20 - rot * X10;
 
