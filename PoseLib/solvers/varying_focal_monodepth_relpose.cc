@@ -559,7 +559,7 @@ void varying_focal_monodepth_relpose_ours(const std::vector<Eigen::Vector2d> &x1
     Eigen::VectorXd datain(24);
     datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[3][0], x1h[0][1], x1h[1][1], x1h[2][1], x1h[3][1], x2h[0][0],
         x2h[1][0], x2h[2][0], x2h[3][0], x2h[0][1], x2h[1][1], x2h[2][1], x2h[3][1], depth1[0], depth1[1], depth1[2],
-        depth1[3], depth2[0], depth2[1], depth2[2], depth1[3];
+        depth1[3], depth2[0], depth2[1], depth2[2], depth2[3];
 
     Eigen::MatrixXd sols;
     if (use_eigen)

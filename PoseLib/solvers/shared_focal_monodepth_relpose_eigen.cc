@@ -41,7 +41,7 @@ Eigen::MatrixXd shared_focal_monodepth_relpose_gb_impl(Eigen::VectorXd d) {
     coeffs[29] = -2*std::pow(d[1],2)*d[17] + 2*d[1]*d[2]*d[17] - 2*std::pow(d[5],2)*d[17] + 2*d[5]*d[6]*d[17] + 2*d[1]*d[2]*d[18] - 2*std::pow(d[2],2)*d[18] + 2*d[5]*d[6]*d[18] - 2*std::pow(d[6],2)*d[18];
     coeffs[30] = -std::pow(d[17],2) + 2*d[17]*d[18] - std::pow(d[18],2);
     coeffs[31] = -std::pow(d[1],2)*std::pow(d[17],2) - std::pow(d[5],2)*std::pow(d[17],2) + 2*d[1]*d[2]*d[17]*d[18] + 2*d[5]*d[6]*d[17]*d[18] - std::pow(d[2],2)*std::pow(d[18],2) - std::pow(d[6],2)*std::pow(d[18],2);
-
+    
 
     static const int coeffs_ind[] = {0,8,16,24,0,8,16,24,0,8,16,24,1,0,9,8,17,16,25,24,2,10,18,26,2,10,18,26,5,2,13,10,21,18,29,26,2,10,18,26,6,5,14,13,21,22,29,30,2,18,
                                      10,26,3,19,11,27,6,14,22,30,7,5,15,13,23,21,31,29,5,13,2,21,18,10,26,29,4,20,3,19,12,11,27,28,6,14,5,21,22,13,29,30,4,20,12,28,7,15,5,23,
@@ -104,6 +104,7 @@ Eigen::MatrixXd shared_focal_monodepth_relpose_gb_impl(Eigen::VectorXd d) {
     }
 
     sols.conservativeResize(4,m);
+    
     return sols;
 }
 
@@ -363,10 +364,6 @@ void shared_focal_monodepth_3p(const std::vector<Eigen::Vector2d> &x1, const std
         depth2[i] = sigma[i][1];
     }
 
-//    Eigen::VectorXd datain(18);
-//    datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
-//        x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
-
     shared_focal_abspose_single_perm(x1h, x2h, depth1, depth2, models);
 
     if (opt.all_permutations){
@@ -407,7 +404,7 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
     Eigen::VectorXd datain(24);
     datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[3][0], x1h[0][1], x1h[1][1], x1h[2][1], x1h[3][1], x2h[0][0],
         x2h[1][0], x2h[2][0], x2h[3][0], x2h[0][1], x2h[1][1], x2h[2][1], x2h[3][1], depth1[0], depth1[1], depth1[2],
-        depth1[3], depth2[0], depth2[1], depth2[2], depth1[3];
+        depth1[3], depth2[0], depth2[1], depth2[2], depth2[3];
 
     Eigen::MatrixXd sols;
 
@@ -416,6 +413,7 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
     } else {
         sols = shared_focal_monodepth_relpose_gb_impl(datain);
     }
+
 
     for (int k = 0; k < sols.cols(); ++k) {
         double s = sols(0, k);
@@ -552,7 +550,7 @@ void shared_focal_monodepth_madpose(const std::vector<Eigen::Vector2d> &xa, cons
                  d1(3) * d1(3) * x1(3, 0) * x1(3, 0) + d1(3) * d1(3) * x1(3, 1) * x1(3, 1) -
                  2 * d1(0) * d1(3) * x1(0, 0) * x1(3, 0) - 2 * d1(0) * d1(3) * x1(0, 1) * x1(3, 1);
     coeffs[31] = d1(0) * d1(0) - 2 * d1(0) * d1(3) + d1(3) * d1(3);
-
+    
     const std::vector<int> coeff_ind0 = {
         0,  8,  16, 24, 1,  9,  17, 25, 2,  10, 0,  8,  16, 18, 24, 26, 0,  8,  16, 24, 0,  8,  16, 24, 0,  8,  16, 24,
         1,  9,  17, 25, 1,  9,  17, 25, 3,  11, 2,  10, 18, 19, 26, 27, 4,  12, 2,  1,  10, 9,  20, 18, 17, 28, 26, 25,
@@ -625,9 +623,10 @@ void shared_focal_monodepth_madpose(const std::vector<Eigen::Vector2d> &xa, cons
         double b1 = sols(i, 1).real(), b2 = sols(i, 2).real();
         Eigen::Vector<double, 5> sol;
         sol << 1.0, b1, a2, b2 * a2, 1.0 / std::sqrt(sols(i, 3).real());
+        
         solutions.push_back(sol);
     }
-
+    
     Eigen::Vector4d depth_x = d1;
     Eigen::Vector4d depth_y = d2;
 
