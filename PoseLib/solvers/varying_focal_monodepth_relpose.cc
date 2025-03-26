@@ -37,9 +37,9 @@ void varying_focal_fundamental_relpose(const std::vector<Eigen::Vector2d> &x1, c
         const double focal2 = camera2.focal();
 
         if (std::isnan(focal1))
-            return;
+            continue;
         if (std::isnan(focal2))
-            return;
+            continue;
 
 //        if (focal1 < opt.max_focal_1 or focal1 > opt.max_focal_1 or
 //            focal2 < opt.min_focal_2 or focal2 > opt.max_focal_2)
