@@ -2,14 +2,13 @@
 
 #include "PoseLib/misc/sturm.h"
 #include "PoseLib/misc/univariate.h"
+#include "p3p_common.h"
 
 #include <iostream>
 namespace poselib {
 
-Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
-    // Action =  y
-    // Quotient ring basis (V) = 1,x,y,z,
-    // Available monomials (RR*V) = x*y,y^2,y*z,1,x,y,z,
+// Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
+std::pair<Eigen::MatrixXd, Eigen::VectorXd> solver_p3p_mono_3d(const Eigen::VectorXd &data) {
 
     const double *d = data.data();
     Eigen::VectorXd coeffs(18);
@@ -42,7 +41,7 @@ Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
         coeffs[7], coeffs[10], coeffs[11],
         coeffs[13], coeffs[16], coeffs[17];
 
-    Eigen::MatrixXd C2 = -C0.partialPivLu().solve(C1);
+    Eigen::MatrixXd C2 = -C0.fullPivLu().solve(C1);
 
     double k0 = C2(0,0);
     double k1 = C2(0,1);
@@ -59,8 +58,6 @@ Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
     double c2 = c4 * (k4*k4 - k0*k8 - k1*k7 - k2*k6 + 2*k3*k5);
     double c1 = c4 * (2*k4*k5 - k2*k7 - k1*k8);
     double c0 = c4 * (k5*k5 - k2*k8);
-//    double roots[4];
-//    int n_roots = univariate::solve_quartic_real(c3, c2, c1, c0, roots);
 
     Eigen::Matrix4d CC;
 
@@ -82,16 +79,17 @@ Eigen::MatrixXd solver_p3p_mono_3d(const Eigen::VectorXd &data) {
     Eigen::MatrixXd sols(3, n_roots);
     for (int ii = 0; ii < n_roots; ii++) {
         double ss = k6*roots[ii]*roots[ii] + k7*roots[ii] + k8;
-        if (ss < 0.01)
+        if (ss < 0.001)
             continue;
         sols(1,ii) = roots[ii];
-        sols(0,ii) = k6*roots[ii]*roots[ii] + k7*roots[ii] + k8;
-        sols(2,ii) = (k3*roots[ii]*roots[ii] + k4*roots[ii] + k5)/sols(0,ii);
+        sols(0,ii) = std::sqrt(ss);
+        sols(2,ii) = (k3*roots[ii]*roots[ii] + k4*roots[ii] + k5)/ss;
         ++m;
     }
     sols.conservativeResize(3, m);
-    return sols;
+    return {sols, coeffs};
 }
+
 int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
                                   const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose) {
     std::vector<Eigen::Vector3d> x1h(3);
@@ -112,39 +110,49 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
     datain << x1h[0][0], x1h[1][0], x1h[2][0], x1h[0][1], x1h[1][1], x1h[2][1], x2h[0][0], x2h[1][0], x2h[2][0],
         x2h[0][1], x2h[1][1], x2h[2][1], depth1[0], depth1[1], depth1[2], depth2[0], depth2[1], depth2[2];
 
-    Eigen::MatrixXd sols = solver_p3p_mono_3d(datain);
-
+    auto [sols, cc] = solver_p3p_mono_3d(datain);
     size_t num_sols = 0;
     for (int k = 0; k < sols.cols(); ++k) {
 
-        double s = std::sqrt(sols(0, k));
+        double s = sols(0, k);
         double u = sols(1, k);
         double v = sols(2, k);
 
+        if (depth2[0] + v <=0 || depth2[1] + v <=0 || depth2[2] + v <=0 || depth1[0] + u <=0 || depth1[1] + u <=0 || depth1[2] + u <=0)
+            continue;
+
+        double s2 = s*s;
+        refine_suv(s2, u, v, cc);
+        s = std::sqrt(s2);
+
         Eigen::Vector3d v1 = s * (depth2[0] + v) * x2h[0] - s * (depth2[1] + v) * x2h[1];
         Eigen::Vector3d v2 = s * (depth2[0] + v) * x2h[0] - s * (depth2[2] + v) * x2h[2];
-        if (depth2[0] + v <=0 || depth2[1] + v <=0 || depth2[2] + v <=0)
-            continue;
+        
         Eigen::Matrix3d Y;
         Y << v1, v2, v1.cross(v2);
 
         Eigen::Vector3d u1 = (depth1[0] + u) * x1h[0] - (depth1[1] + u) * x1h[1];
         Eigen::Vector3d u2 = (depth1[0] + u) * x1h[0] - (depth1[2] + u) * x1h[2];
-        if (depth1[0] + u <=0 || depth1[1] + u <=0 || depth1[2] + u <=0)
-            continue;
+        
         Eigen::Matrix3d X;
         X << u1, u2, u1.cross(u2);
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
-        double det_rot = rot.determinant();
-        rot /= std::cbrt(det_rot);
 
-        CameraPose pose;
-        Eigen::Quaterniond q_flip(rot);
-        pose.q << q_flip.w(), q_flip.x(), q_flip.y(), q_flip.z();
-        pose.t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
-//        pose.t.normalize();
+        Eigen::JacobiSVD<Eigen::Matrix3d> svd(rot, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::Matrix3d U = svd.matrixU();
+        Eigen::Matrix3d V = svd.matrixV();
+        
+        rot = U * V.transpose();
+        
+        if (rot.determinant() < 0) {
+            U.col(2) *= -1.0; 
+            rot = U * V.transpose();
+        }
+        Eigen::Vector3d t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
+
+        CameraPose pose = CameraPose(rot, t);
         pose.shift = u;
         rel_pose->emplace_back(pose);
         num_sols++;

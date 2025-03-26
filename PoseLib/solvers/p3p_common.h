@@ -94,6 +94,71 @@ inline void refine_lambda(double &lambda1, double &lambda2, double &lambda3, con
     }
 }
 
+// Performs a few newton steps on the equations
+inline void refine_suv(double &s, double &u, double &v, const Eigen::VectorXd c) {
+    for (int iter = 0; iter < 5; ++iter) {
+        Eigen::Vector3d r;
+        r(0) = c(0) * s * v * v + c(1) * u * u + c(2) * s * v + c(3) * s + c(4) * u + c(5);
+        r(1) = c(6) * s * v * v + c(7) * u * u + c(8) * s * v + c(9) * s + c(10) * u + c(11);
+        r(2) = c(12) * s * v * v + c(13) * u * u + c(14) * s * v + c(15) * s + c(16) * u + c(17);
+        if (std::abs(r(0)) + std::abs(r(1)) + std::abs(r(2)) < 1e-10)
+            return;
+        Eigen::Matrix3d J;
+        J(0, 0) = c(0) * v * v + c(2) * v + c(3);
+        J(0, 1) = 2.0 * c(1) * u + c(4);
+        J(0, 2) = 2.0 * c(0) * s * v + c(2) * s;
+
+        J(1, 0) = c(6) * v * v + c(8) * v + c(9);
+        J(1, 1) = 2.0 * c(7) * u + c(10);
+        J(1, 2) = 2.0 * c(6) * s * v + c(8) * s;
+
+        J(2, 0) = c(12) * v * v + c(14) * v + c(15);
+        J(2, 1) = 2.0 * c(13) * u + c(16);
+        J(2, 2) = 2.0 * c(12) * s * v + c(14) * s;
+
+        Eigen::Vector3d delta_lambda = (J.transpose() * J).ldlt().solve(-J.transpose() * r);
+
+        s += delta_lambda(0);
+        u += delta_lambda(1);
+        v += delta_lambda(2);
+    }
+}
+
+inline void estimateRigidTransformSVD(
+    const std::vector<Eigen::Vector3d> &P,
+    const std::vector<Eigen::Vector3d> &Q,
+    Eigen::Matrix3d &R,
+    Eigen::Vector3d &t) 
+{
+    int N = P.size();
+
+    Eigen::Vector3d cP = Eigen::Vector3d::Zero();
+    Eigen::Vector3d cQ = Eigen::Vector3d::Zero();
+    for (int i = 0; i < N; i++) {
+        cP += P[i];
+        cQ += Q[i];
+    }
+    cP /= N;
+    cQ /= N;
+
+    Eigen::Matrix3d H = Eigen::Matrix3d::Zero();
+    for (int i = 0; i < N; i++) {
+        H += (P[i] - cP) * (Q[i] - cQ).transpose();
+    }
+
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d U = svd.matrixU();
+    Eigen::Matrix3d V = svd.matrixV();
+
+    R = V * U.transpose();
+    if (R.determinant() < 0) {
+        V.col(2) *= -1;
+        R = V * U.transpose();
+    }
+
+    t = cQ - R * cP;
+}
+
 } // namespace poselib
 
 #endif // POSELIB_P3P_COMMON_H
