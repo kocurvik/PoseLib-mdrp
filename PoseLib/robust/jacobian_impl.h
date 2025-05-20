@@ -901,7 +901,7 @@ class SharedFocalAbsPoseJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 7, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
+        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
 
         Camera camera_new =
             Camera("SIMPLE_PINHOLE",
@@ -1072,7 +1072,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 8, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
+        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
         pose_new.shift = image_pair.pose.shift + dp(7, 0);
         Camera camera_new1 =
             Camera("SIMPLE_PINHOLE",
@@ -1225,7 +1225,7 @@ class AbsPoseShiftJacobianAccumulator {
     CameraPose step(Eigen::Matrix<double, 7, 1> dp, const CameraPose &pose) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = pose.t + dp.block<3, 1>(3, 0);
+        pose_new.t = pose.t + pose.rotate(dp.block<3, 1>(3, 0));
         pose_new.shift = pose.shift + dp(6, 0);
         return pose_new;
     }
@@ -1390,7 +1390,7 @@ class VaryingFocalAbsPoseJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 8, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
+        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
 
         Camera camera1_new =
             Camera("SIMPLE_PINHOLE",
@@ -1570,7 +1570,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 9, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
+        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
         pose_new.shift = image_pair.pose.shift + dp(8, 0);
 
         Camera camera1_new =
