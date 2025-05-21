@@ -901,7 +901,7 @@ class SharedFocalAbsPoseJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 7, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
+        pose_new.t = image_pair.pose.t + image_pair.pose.rotate(dp.block<3, 1>(3, 0));
 
         Camera camera_new =
             Camera("SIMPLE_PINHOLE",
@@ -1072,7 +1072,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 8, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
+        pose_new.t = image_pair.pose.t + image_pair.pose.rotate(dp.block<3, 1>(3, 0));
         pose_new.shift = image_pair.pose.shift + dp(7, 0);
         Camera camera_new1 =
             Camera("SIMPLE_PINHOLE",
@@ -1190,27 +1190,27 @@ class AbsPoseShiftJacobianAccumulator {
             J.col(1) = Xi(2) * dZ.col(0) - Xi(0) * dZ.col(2);
             J.col(2) = -Xi(1) * dZ.col(0) + Xi(0) * dZ.col(1);
             // Jacobian w.r.t. translation t
-            J.block<2, 3>(0, 3) = Jproj;
+            J.block<2, 3>(0, 3) = dZ;
             // Jacobian w.r.t. camera parameters
 //            J.col(6) = J_params;
             J(0, 6) = inv_z * R.row(0).dot(Xo) - Z(0) * inv_z * inv_z * R.row(2).dot(Xo);
             J(1, 6) = inv_z * R.row(1).dot(Xo) - Z(1) * inv_z * inv_z * R.row(2).dot(Xo);
 
-//            Eigen::Matrix<double, 1, 7> num_J;
-//            Eigen::Matrix<double, 7, 1> dp;
-//            double eps = 1.0e-6;
-//            for (int j = 0; j < 7; ++j){
-//                dp.setZero();
-//                dp(j, 0) = eps;
-//                CameraPose fwd_image_triplet = step(dp, pose);
-//                CameraPose bcw_image_triplet = step(-dp, pose);
-//                dp.setZero();
-//                num_J(0, j) = (residual(fwd_image_triplet, i) - residual(bcw_image_triplet, i)) / (2 *
-//                eps);
-//            }
-//
-//            std::cout << "Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
-//            std::cout << "Num J: " << num_J << std::endl;
+            // Eigen::Matrix<double, 1, 7> num_J;
+            // Eigen::Matrix<double, 7, 1> dp;
+            // double eps = 1.0e-6;
+            // for (int j = 0; j < 7; ++j){
+            //     dp.setZero();
+            //     dp(j, 0) = eps;
+            //     CameraPose fwd_image_triplet = step(dp, pose);
+            //     CameraPose bcw_image_triplet = step(-dp, pose);
+            //     dp.setZero();
+            //     num_J(0, j) = (residual(fwd_image_triplet, i) - residual(bcw_image_triplet, i)) / (2 *
+            //     eps);
+            // }
+
+            // std::cout << "Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+            // std::cout << "Num J: " << num_J << std::endl;
 
             for (int k = 0; k < 7; ++k) {
                 for (int j = 0; j <= k; ++j) {
@@ -1390,7 +1390,7 @@ class VaryingFocalAbsPoseJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 8, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
+        pose_new.t = image_pair.pose.t + image_pair.pose.rotate(dp.block<3, 1>(3, 0));
 
         Camera camera1_new =
             Camera("SIMPLE_PINHOLE",
@@ -1570,7 +1570,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     ImagePair step(Eigen::Matrix<double, 9, 1> dp, const ImagePair &image_pair) const {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
-        pose_new.t = image_pair.pose.t + pose.rotate(dp.block<3, 1>(3, 0));
+        pose_new.t = image_pair.pose.t + image_pair.pose.rotate(dp.block<3, 1>(3, 0));
         pose_new.shift = image_pair.pose.shift + dp(8, 0);
 
         Camera camera1_new =
