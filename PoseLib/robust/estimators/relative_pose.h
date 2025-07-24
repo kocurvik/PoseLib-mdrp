@@ -148,6 +148,7 @@ class VaryingFocalMonodepthRelativePoseEstimator {
             x1h[i] = x1[i].homogeneous();
     }
 
+    void filter_focals(ImagePairVector *models);
     void generate_models(ImagePairVector *models);
     double score_model(const ImagePair &image_pair, size_t *inlier_count) const;
     void refine_model(ImagePair *image_pair) const;

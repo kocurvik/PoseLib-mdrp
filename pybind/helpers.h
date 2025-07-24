@@ -57,6 +57,7 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "min_focal_1", ransac_opt.min_focal_1);
     update(input, "max_focal_2", ransac_opt.max_focal_2);
     update(input, "min_focal_2", ransac_opt.min_focal_2);
+    update(input, "filter_focals", ransac_opt.filter_focals);
 }
 
 void update_bundle_options(const py::dict &input, BundleOptions &bundle_opt) {
@@ -116,6 +117,7 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["max_focal_1"] = ransac_opt.max_focal_1;
     dict["min_focal_2"] = ransac_opt.min_focal_2;
     dict["max_focal_2"] = ransac_opt.max_focal_2;
+    dict["filter_focals"] = ransac_opt.filter_focals;
 }
 
 void write_to_dict(const BundleOptions &bundle_opt, py::dict &dict) {

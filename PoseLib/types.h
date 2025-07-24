@@ -69,6 +69,7 @@ struct RansacOptions {
     double min_focal_2 = 0.0;
     double max_focal_2 = 1e12;
     int graduated_steps = 0;
+    bool filter_focals = false;
 };
 
 struct RansacStats {

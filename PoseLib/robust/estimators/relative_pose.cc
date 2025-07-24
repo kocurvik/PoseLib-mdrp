@@ -224,6 +224,21 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
     }
 }
 
+void VaryingFocalMonodepthRelativePoseEstimator::filter_focals(ImagePairVector *models) {
+    if (!opt.filter_focals)
+        return;
+
+    ImagePairVector new_models;
+    new_models.reserve(models->size());
+
+    for(const ImagePair& model: *models){
+        if (model.camera1.focal() >= opt.min_focal_1 and model.camera1.focal() <= opt.max_focal_1 and
+            model.camera2.focal() >= opt.min_focal_2 and model.camera2.focal() <= opt.max_focal_2)
+            new_models.push_back(model);
+    }
+    *models = new_models;
+}
+
 void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector *models) {
     sampler.generate_sample(&sample);
     for (size_t k = 0; k < sample_sz; ++k) {
@@ -234,33 +249,39 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
 
     if (opt.use_fundamental) {
         varying_focal_fundamental_relpose(x1s, x2s, models, opt);
+        filter_focals(models);
         return;
     }
 
     if (opt.use_4p4d) {
         varying_focal_monodepth_relpose(x1s, x2s, monodepth, models, opt);
+        filter_focals(models);
         return;
     }
 
     if (opt.use_ours) {
         if (!opt.solver_scale and !opt.solver_shift) {
             varying_focal_monodepth_abspose_ours(x1s, x2s, monodepth, models, opt);
+            filter_focals(models);
             return;
         }
 
         if (opt.solver_scale and !opt.solver_shift) {
             varying_focal_monodepth_s00_ours(x1s, x2s, monodepth, models);
+            filter_focals(models);
             return;
         }
 
         if (opt.solver_scale and opt.solver_shift) {
             varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
+            filter_focals(models);
             return;
         }
     }
 
     if (opt.use_madpose){
         varying_focal_monodepth_relpose_madpose(x1s, x2s, monodepth, models);
+        filter_focals(models);
         return;
     }
 
