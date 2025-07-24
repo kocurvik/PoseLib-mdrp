@@ -267,7 +267,7 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
         }
 
         if (opt.solver_scale and !opt.solver_shift) {
-            varying_focal_monodepth_s00_ours(x1s, x2s, monodepth, models);
+            varying_focal_monodepth_s00_ours(x1s, x2s, monodepth, opt.filter_scale, models);
             filter_focals(models);
             return;
         }

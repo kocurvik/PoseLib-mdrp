@@ -70,6 +70,7 @@ struct RansacOptions {
     double max_focal_2 = 1e12;
     int graduated_steps = 0;
     bool filter_focals = false;
+    bool filter_scale = false;
 };
 
 struct RansacStats {
