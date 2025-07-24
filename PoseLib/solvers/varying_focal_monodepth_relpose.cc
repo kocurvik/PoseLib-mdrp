@@ -932,7 +932,7 @@ void varying_focal_monodepth_s00_ours(const std::vector<Eigen::Vector2d> &x1, co
     {
         double f = std::sqrt(sol(0));
         double s = std::sqrt(sol(2));
-        if (filter_scale and (s < 0.5 or s > 2.0)){
+        if (filter_scale and (s < 0.1 or s > 10.0)){
             return;
         }
 
