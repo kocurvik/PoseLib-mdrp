@@ -328,9 +328,6 @@ void shared_focal_abspose_single_perm(const std::vector<Eigen::Vector3d> &x1h, c
             X = X.inverse().eval();
 
             Eigen::Matrix3d rot = Y * X;
-            double det_rot = rot.determinant();
-            rot /= std::cbrt(det_rot);
-
             Eigen::Vector3d trans = X20 - rot * X10;
 
             CameraPose pose = CameraPose(rot, trans);
@@ -440,8 +437,6 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
-        double det_rot = rot.determinant();
-        rot /= std::cbrt(det_rot);
 
         Eigen::Vector3d trans1 = (depth1[0] + u) * rot * Kinv * x1h[0];
         Eigen::Vector3d trans2 = s * (depth2[0] + v) * Kinv * x2h[0];
