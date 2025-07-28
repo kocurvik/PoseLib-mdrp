@@ -139,17 +139,6 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
         X = X.inverse().eval();
 
         Eigen::Matrix3d rot = Y * X;
-
-        Eigen::JacobiSVD<Eigen::Matrix3d> svd(rot, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Eigen::Matrix3d U = svd.matrixU();
-        Eigen::Matrix3d V = svd.matrixV();
-        
-        rot = U * V.transpose();
-        
-        if (rot.determinant() < 0) {
-            U.col(2) *= -1.0; 
-            rot = U * V.transpose();
-        }
         Eigen::Vector3d t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
 
         CameraPose pose = CameraPose(rot, t);
