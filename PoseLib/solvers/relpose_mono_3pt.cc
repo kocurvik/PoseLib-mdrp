@@ -59,22 +59,8 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> solver_p3p_mono_3d(const Eigen::Vect
     double c1 = c4 * (2*k4*k5 - k2*k7 - k1*k8);
     double c0 = c4 * (k5*k5 - k2*k8);
 
-    Eigen::Matrix4d CC;
-
-    CC << 0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1,
-        -c0, -c1, -c2, -c3;
-
-    Eigen::EigenSolver<Eigen::Matrix4d> es(CC, false);
-    Eigen::Matrix<std::complex<double>, 4, 1> D = es.eigenvalues();
-    int n_roots = 0;
     double roots[4];
-    for (int i = 0; i < 4; ++i) {
-        if (std::abs(D(i).imag()) > 1e-8)
-            continue;
-        roots[n_roots++] = D(i).real();
-    }
+    int n_roots = univariate::solve_quartic_real(c3, c2, c1, c0, roots);
     int m = 0;
     Eigen::MatrixXd sols(3, n_roots);
     for (int ii = 0; ii < n_roots; ii++) {
