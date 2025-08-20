@@ -961,6 +961,7 @@ void varying_focal_monodepth_s00_ours(const std::vector<Eigen::Vector2d> &x1, co
         double focal2 = 1.0 / w;
 
         CameraPose pose = CameraPose(rot, trans);
+        pose.scale = s;
         Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal1, 0.0, 0.0}, -1, -1);
         Camera camera2 = Camera("SIMPLE_PINHOLE", std::vector<double>{focal2, 0.0, 0.0}, -1, -1);
         models->emplace_back(pose, camera1, camera2);

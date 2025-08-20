@@ -273,6 +273,10 @@ RansacStats estimate_relative_pose_w_mono_depth(
                 refine_calib_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
                 return stats;
             }
+            if (ransac_opt.sym_repro){
+                refine_calib_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
+                return stats;
+            }
             std::vector<Point3D> X(x1_inliers.size());
             for (size_t i; i < x1_inliers.size(); ++i)
                 X[i] = sigma_inliers[i](0) * x1_inliers[i].homogeneous();
@@ -410,7 +414,11 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift) {
                 refine_shared_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
-            } else {
+            } 
+            else if (ransac_opt.sym_repro) {
+                refine_shared_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            }
+            else {
                 refine_shared_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             }
         } else {
@@ -486,6 +494,8 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift)
                 refine_varying_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            else if (ransac_opt.sym_repro)
+                refine_varying_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             else
                 refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
         } else {

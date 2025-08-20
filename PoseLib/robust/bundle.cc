@@ -227,6 +227,42 @@ BundleStats bundle_adjust(const std::vector<Point2D> &points2D, const std::vecto
     }
 }
 
+// symmetric repro calibrated
+template <typename WeightType, typename LossFunction>
+BundleStats refine_calib_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose, const BundleOptions &opt,
+                                       const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    SymReproScaleJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, weights);
+    return lm_impl<decltype(accum)>(accum, pose, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_calib_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose,
+                                       const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_calib_symrepro_scale<WeightType, LossFunction>(x1, x2, sigma, pose, opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+BundleStats refine_calib_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma, CameraPose *pose, const BundleOptions &opt,
+                                        const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_calib_symrepro_scale<std::vector<double>>(x1, x2, sigma, pose, opt, weights);
+    } else {
+        return refine_calib_symrepro_scale<UniformWeightVector>(x1, x2, sigma, pose, opt, UniformWeightVector());
+    }
+}
+//-------------------------------------
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // Generalized absolute pose with points (GPnP)
 
@@ -395,6 +431,43 @@ BundleStats refine_shared_focal_abspose(const std::vector<Point2D> &x1, const st
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+// symmetric error shared focal
+template <typename WeightType, typename LossFunction>
+BundleStats refine_shared_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt, const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    SymReproSharedFocalScaleJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, weights);
+    return lm_impl<decltype(accum)>(accum, image_pair, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_shared_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_shared_focal_symrepro_scale<WeightType, LossFunction>(x1, x2, sigma, image_pair, opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+BundleStats refine_shared_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt,
+                                        const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_shared_focal_symrepro_scale<std::vector<double>>(x1, x2, sigma, image_pair, opt, weights);
+    } else {
+        return refine_shared_focal_symrepro_scale<UniformWeightVector>(x1, x2, sigma, image_pair, opt, UniformWeightVector());
+    }
+}
+
 template <typename WeightType, typename LossFunction>
 BundleStats refine_shared_focal_abspose_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                         const std::vector<Point2D> &sigma,
@@ -490,7 +563,6 @@ BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const s
 #undef SWITCH_LOSS_FUNCTION_CASE
 }
 
-// Entry point for essential matrix refinement
 BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                         const std::vector<Point2D> &sigma,
                                         ImagePair *image_pair, const BundleOptions &opt,
@@ -499,6 +571,41 @@ BundleStats refine_varying_focal_abspose(const std::vector<Point2D> &x1, const s
         return refine_varying_focal_abspose<std::vector<double>>(x1, x2, sigma, image_pair, opt, weights);
     } else {
         return refine_varying_focal_abspose<UniformWeightVector>(x1, x2, sigma, image_pair, opt, UniformWeightVector());
+    }
+}
+
+template <typename WeightType, typename LossFunction>
+BundleStats refine_varying_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt, const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    SymReproVaryingFocalScaleJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, weights);
+    return lm_impl<decltype(accum)>(accum, image_pair, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_varying_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_varying_focal_symrepro_scale<WeightType, LossFunction>(x1, x2, sigma, image_pair, opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+BundleStats refine_varying_focal_symrepro_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                        const std::vector<Point2D> &sigma,
+                                        ImagePair *image_pair, const BundleOptions &opt,
+                                        const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_varying_focal_symrepro_scale<std::vector<double>>(x1, x2, sigma, image_pair, opt, weights);
+    } else {
+        return refine_varying_focal_symrepro_scale<UniformWeightVector>(x1, x2, sigma, image_pair, opt, UniformWeightVector());
     }
 }
 
