@@ -519,9 +519,9 @@ RansacStats estimate_fundamental(const std::vector<Point2D> &x1, const std::vect
     }
 
     // We normalize points here to improve conditioning. Note that the normalization
-    // only ammounts to a uniform rescaling and shift of the image coordinate system
+    // only ammounts to a uniform rescaling and shift_1 of the image coordinate system
     // and the cost we minimize is equivalent to the cost in the original image
-    // for RFC we do not perform the shift as the pp needs to remain at [0, 0]
+    // for RFC we do not perform the shift_1 as the pp needs to remain at [0, 0]
 
     Eigen::Matrix3d T1, T2;
     std::vector<Point2D> x1_norm = x1;

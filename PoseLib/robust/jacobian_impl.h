@@ -1616,7 +1616,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
 
     double residual(const ImagePair &image_pair) const {
         const double focal = image_pair.camera1.focal();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/focal, 1 / focal, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -1638,7 +1638,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
 
     double residual(const ImagePair &image_pair, size_t i) const {
         const double focal = image_pair.camera1.focal();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/focal, 1 / focal, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -1658,7 +1658,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
     size_t accumulate(const ImagePair &image_pair, Eigen::Matrix<double, 8, 8> &JtJ,
                       Eigen::Matrix<double, 8, 1> &Jtr) const {
         Eigen::Matrix3d R = image_pair.pose.R();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
 
         Eigen::Matrix<double, 2, 8> J;
         Eigen::Matrix<double, 2, 3> Jproj;
@@ -1757,7 +1757,7 @@ class SharedFocalAbsPoseShiftJacobianAccumulator {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
         pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
-        pose_new.shift = image_pair.pose.shift + dp(7, 0);
+        pose_new.shift_1 = image_pair.pose.shift_1 + dp(7, 0);
         Camera camera_new1 =
             Camera("SIMPLE_PINHOLE",
                    std::vector<double>{std::max(image_pair.camera1.focal() + dp(6, 0), 0.0), 0.0, 0.0}, -1, -1);
@@ -1785,7 +1785,7 @@ class AbsPoseShiftJacobianAccumulator {
         : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), weights(w) {}
 
     double residual(const CameraPose &pose) const {
-        const double shift = pose.shift;
+        const double shift = pose.shift_1;
         Eigen::Matrix3d R = pose.R();
         Eigen::Vector3d t = pose.t;
         double cost = 0;
@@ -1805,7 +1805,7 @@ class AbsPoseShiftJacobianAccumulator {
     }
 
     double residual(const CameraPose &pose, size_t i) const {
-        const double shift = pose.shift;
+        const double shift = pose.shift_1;
         Eigen::Matrix3d R = pose.R();
         Eigen::Vector3d t = pose.t;
         const Eigen::Vector3d Z = R * (sigma[i](0) + shift) * x1[i].homogeneous().eval() + t;
@@ -1824,7 +1824,7 @@ class AbsPoseShiftJacobianAccumulator {
     size_t accumulate(const CameraPose &pose, Eigen::Matrix<double, 7, 7> &JtJ,
                       Eigen::Matrix<double, 7, 1> &Jtr) const {
         Eigen::Matrix3d R = pose.R();
-        const double shift = pose.shift;
+        const double shift = pose.shift_1;
 
         Eigen::Matrix<double, 2, 7> J;
         Eigen::Matrix<double, 2, 3> Jproj;
@@ -1910,7 +1910,7 @@ class AbsPoseShiftJacobianAccumulator {
         CameraPose pose_new;
         pose_new.q = quat_step_post(pose.q, dp.block<3, 1>(0, 0));
         pose_new.t = pose.t + dp.block<3, 1>(3, 0);
-        pose_new.shift = pose.shift + dp(6, 0);
+        pose_new.shift_1 = pose.shift_1 + dp(6, 0);
         return pose_new;
     }
     typedef CameraPose param_t;
@@ -2110,7 +2110,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     double residual(const ImagePair &image_pair) const {
         const double f1 = image_pair.camera1.focal();
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/ f1, 1 / f1, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -2133,7 +2133,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
     double residual(const ImagePair &image_pair, size_t i) const {
         const double f1 = image_pair.camera1.focal();
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
         Eigen::DiagonalMatrix<double, 3> K_inv(1/ f1, 1 / f1, 1);
         Eigen::Matrix3d R = image_pair.pose.R();
         Eigen::Vector3d t = image_pair.pose.t;
@@ -2162,7 +2162,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
         const double f1 = image_pair.camera1.focal();
         const double inv_f1 = 1.0 / f1;
         const double f2 = image_pair.camera2.focal();
-        const double shift = image_pair.pose.shift;
+        const double shift = image_pair.pose.shift_1;
 
         Eigen::DiagonalMatrix<double, 3> K_inv(inv_f1, inv_f1, 1);
 
@@ -2255,7 +2255,7 @@ class VaryingFocalAbsPoseShiftJacobianAccumulator {
         CameraPose pose_new;
         pose_new.q = quat_step_post(image_pair.pose.q, dp.block<3, 1>(0, 0));
         pose_new.t = image_pair.pose.t + dp.block<3, 1>(3, 0);
-        pose_new.shift = image_pair.pose.shift + dp(8, 0);
+        pose_new.shift_1 = image_pair.pose.shift_1 + dp(8, 0);
 
         Camera camera1_new =
             Camera("SIMPLE_PINHOLE",

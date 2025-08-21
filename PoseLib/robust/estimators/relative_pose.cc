@@ -164,7 +164,7 @@ double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &i
         std::vector<Point3D> X(x1.size());
 
         if (opt.optimize_shift) {
-            double shift = image_pair.pose.shift;
+            double shift = image_pair.pose.shift_1;
             for (size_t i = 0; i < X.size(); ++i) {
                 X[i] = (sigma[i](0) + shift) * (K_inv * x1h[i]);
             }
@@ -297,7 +297,7 @@ double VaryingFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &
                                                 1.0);
         std::vector<Point3D> X(x1.size());
         if (opt.optimize_shift) {
-            double shift = image_pair.pose.shift;
+            double shift = image_pair.pose.shift_1;
             for (size_t i = 0; i < X.size(); ++i) {
                 X[i] = (sigma[i](0) + shift) * (K1_inv * x1h[i]);
             }
@@ -556,7 +556,7 @@ double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_
     if (opt.use_reproj) {
         if (opt.optimize_shift) {
             std::vector<Point3D> X1s(x1.size());
-            double shift = pose.shift;
+            double shift = pose.shift_1;
             for (size_t i = 0; i < x1.size(); ++i)
                 X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
             return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
