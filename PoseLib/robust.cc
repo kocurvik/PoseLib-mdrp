@@ -28,6 +28,7 @@
 
 #include "robust.h"
 
+#include "PoseLib/robust/bundle_wip.h"
 #include "PoseLib/robust/utils.h"
 
 #include <iostream>
@@ -274,7 +275,11 @@ RansacStats estimate_relative_pose_w_mono_depth(
                 return stats;
             }
             if (ransac_opt.sym_repro){
-                refine_calib_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
+                double scale_reproj = 1.0 / (ransac_opt_scaled.max_reproj_error * ransac_opt_scaled.max_reproj_error);
+                double scale_sampson = 1.0 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error);
+                BundleOptions ba_bundle_opt = bundle_opt;
+                ba_bundle_opt.loss_scale = 1.0;
+                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, ba_bundle_opt);
                 return stats;
             }
             std::vector<Point3D> X(x1_inliers.size());

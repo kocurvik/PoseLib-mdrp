@@ -256,6 +256,9 @@ class RelativePoseMonoDepthEstimator {
             for (size_t i = 0; i < num_data; ++i)
                 X1[i] = sigma[i](0) * x1[i].homogeneous();
         }
+
+        scale_reproj = 1 / (opt.max_reproj_error * opt.max_epipolar_error);
+        scale_sampson = 1 / (opt.max_epipolar_error * opt.max_epipolar_error);
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
@@ -275,6 +278,7 @@ class RelativePoseMonoDepthEstimator {
     std::vector<double> rel_depth;
     std::vector<size_t> sample;
     std::vector<Eigen::Vector3d> X1;
+    double scale_reproj, scale_sampson;
 };
 
 } // namespace poselib

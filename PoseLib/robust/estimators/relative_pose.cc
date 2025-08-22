@@ -30,6 +30,7 @@
 
 #include "PoseLib/misc/essential.h"
 #include "PoseLib/robust/bundle.h"
+#include "PoseLib/robust/bundle_wip.h"
 #include "PoseLib/solvers/gen_relpose_5p1pt.h"
 #include "PoseLib/solvers/p3p.h"
 #include "PoseLib/solvers/relpose_5pt.h"
@@ -584,7 +585,9 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
                     refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
                 } 
                 else if (opt.sym_repro) {
-                    refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+                    // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
+                    bundle_opt.loss_scale = 1.0 * 8.0 * factor;
+                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
                 } 
                 else {
                     bundle_adjust(x2, X1, pose, bundle_opt);
@@ -624,7 +627,9 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
             return;
         }
         if (opt.sym_repro) {
-            refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+            // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
+            bundle_opt.loss_scale = 1.0;
+            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
             return;
         } 
         bundle_adjust(x2, X1, pose, bundle_opt);

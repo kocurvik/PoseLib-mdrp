@@ -43,6 +43,7 @@ set(SOURCES
     robust.cc
     robust/ransac.cc
     robust/bundle.cc
+    robust/bundle_wip.cc
     robust/utils.cc
     robust/sampling.cc
     robust/estimators/absolute_pose.cc
@@ -103,6 +104,7 @@ set(HEADERS_PUBLIC
     robust/ransac.h
     robust/ransac_impl.h
     robust/bundle.h
+    robust/bundle_wip.h
     robust/utils.h
     robust/sampling.h
     robust/lm_impl.h

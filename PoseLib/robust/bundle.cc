@@ -261,6 +261,7 @@ BundleStats refine_calib_symrepro_scale(const std::vector<Point2D> &x1, const st
         return refine_calib_symrepro_scale<UniformWeightVector>(x1, x2, sigma, pose, opt, UniformWeightVector());
     }
 }
+
 //-------------------------------------
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
