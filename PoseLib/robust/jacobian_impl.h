@@ -895,7 +895,7 @@ class HybridPoseScaleJacobianAccumulator {
 //                    std::cout << "R1 - Num J: " << num_J << std::endl;
 
 
-                    for (int k = 0; k < 9; ++k) {
+                    for (int k = 0; k < 7; ++k) {
                         for (int j = 0; j <= k; ++j) {
                             JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
                         }
