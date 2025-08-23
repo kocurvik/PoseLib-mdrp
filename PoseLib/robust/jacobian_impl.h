@@ -241,6 +241,102 @@ class HybridPoseScaleShiftJacobianAccumulator {
         return cost;
     }
 
+    double residual(const CameraPose &pose, size_t i) const {
+        const double scale = pose.scale;
+        const double shift_1 = pose.shift_1;
+        const double shift_2 = pose.shift_2;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+
+            Eigen::Matrix3d E;
+            essential_from_motion(pose, &E);
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+            double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
+                            (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
+            double r2 = scale_sampson * (C * C) / nJc_sq;
+
+            cost += weights[i] * loss_fn.loss(r2);
+
+            const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
+            const Eigen::Vector3d Z2 =
+                R.transpose() * (scale * (sigma[i](1) + shift_2) * x2[i].homogeneous().eval() - t);
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z1(2) > 0) {
+                const double inv_z1 = 1.0 / Z1(2);
+                const double r10 = Z1(0) * inv_z1 - x2[i](0);
+                const double r11 = Z1(1) * inv_z1 - x2[i](1);
+                const double r_squared1 = r10 * r10 + r11 * r11;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared1);
+            }
+
+            if (Z2(2) > 0) {
+                const double inv_z2 = 1.0 / Z2(2);
+                const double r20 = Z2(0) * inv_z2 - x1[i](0);
+                const double r21 = Z2(1) * inv_z2 - x1[i](1);
+                const double r_squared2 = r20 * r20 + r21 * r21;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared2);
+            }
+        return cost;
+    }
+
+    double residual_1(const CameraPose &pose, size_t i) const {
+        const double shift_1 = pose.shift_1;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+
+        const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z1(2) > 0) {
+                const double inv_z1 = 1.0 / Z1(2);
+                const double r10 = Z1(0) * inv_z1 - x2[i](0);
+                const double r11 = Z1(1) * inv_z1 - x2[i](1);
+                const double r_squared1 = r10 * r10 + r11 * r11;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared1);
+            }
+        return cost;
+    }
+
+    double residual_2(const CameraPose &pose, size_t i) const {
+        const double scale = pose.scale;
+        const double shift_2 = pose.shift_2;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+            const Eigen::Vector3d Z2 =
+                R.transpose() * (scale * (sigma[i](1) + shift_2) * x2[i].homogeneous().eval() - t);
+            // during the optimization
+            if (Z2(2) > 0) {
+                const double inv_z2 = 1.0 / Z2(2);
+                const double r20 = Z2(0) * inv_z2 - x1[i](0);
+                const double r21 = Z2(1) * inv_z2 - x1[i](1);
+                const double r_squared2 = r20 * r20 + r21 * r21;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared2);
+            }
+        return cost;
+    }
+
+    double residual_s(const CameraPose &pose, size_t i) const {
+        double cost = 0;
+
+            Eigen::Matrix3d E;
+            essential_from_motion(pose, &E);
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+            double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
+                            (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
+            double r2 = scale_sampson * (C * C) / nJc_sq;
+
+            cost += weights[i] * loss_fn.loss(r2);
+        return cost;
+    }
+
     size_t accumulate(const CameraPose &pose, Eigen::Matrix<double, 9, 9> &JtJ,
                       Eigen::Matrix<double, 9, 1> &Jtr) const {
         Eigen::Matrix3d R = pose.R();
@@ -290,8 +386,12 @@ class HybridPoseScaleShiftJacobianAccumulator {
         dt.col(1) = Eigen::Map<Eigen::VectorXd>(dt_1.data(), dt_1.size());
         dt.col(2) = Eigen::Map<Eigen::VectorXd>(dt_2.data(), dt_2.size());
 
+//        Eigen::Matrix<double, 9, 1> Jtr_check;
+
+
         size_t num_residuals = 0;
         for (size_t i = 0; i < x1.size(); ++i) {
+//            Jtr_check.setZero();
             const Eigen::Vector3d X1o = x1[i].homogeneous().eval();
             const Eigen::Vector3d X1i = (sigma[i](0) + shift_1) * X1o;
             const Eigen::Vector3d Z1 = R * X1i + pose.t;
@@ -340,20 +440,20 @@ class HybridPoseScaleShiftJacobianAccumulator {
                     J.col(6).setZero();
                     J.col(8).setZero();
 
-                    //                Eigen::Matrix<double, 1, 9> num_J;
-                    //                Eigen::Matrix<double, 9, 1> dp;
-                    //                double eps = 1.0e-6;
-                    //                for (int j = 0; j < 9; ++j){
-                    //                    dp.setZero();
-                    //                    dp(j, 0) = eps;
-                    //                    CameraPose fwd_image_triplet = step(dp, pose);
-                    //                    CameraPose bcw_image_triplet = step(-dp, pose);
-                    //                    dp.setZero();
-                    //                    num_J(0, j) = (residual_1(fwd_image_triplet, i) - residual_1(bcw_image_triplet, i)) / (2 *                                                                                                           eps);
-                    //                }
-                    //
-                    //                std::cout << "R1 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
-                    //                std::cout << "R1 - Num J: " << num_J << std::endl;
+//                    Eigen::Matrix<double, 1, 9> num_J;
+//                    Eigen::Matrix<double, 9, 1> dp;
+//                    double eps = 1.0e-6;
+//                    for (int j = 0; j < 9; ++j){
+//                        dp.setZero();
+//                        dp(j, 0) = eps;
+//                        CameraPose fwd_image_triplet = step(dp, pose);
+//                        CameraPose bcw_image_triplet = step(-dp, pose);
+//                        dp.setZero();
+//                        num_J(0, j) = (residual_1(fwd_image_triplet, i) - residual_1(bcw_image_triplet, i)) / (2 *                                                                                                           eps);
+//                    }
+//
+//                    std::cout << "R1 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+//                    std::cout << "R1 - Num J: " << num_J << std::endl;
 
 
                     for (int k = 0; k < 9; ++k) {
@@ -362,6 +462,7 @@ class HybridPoseScaleShiftJacobianAccumulator {
                         }
                     }
                     Jtr += J.transpose() * (weight * res);
+//                    Jtr_check += J.transpose() * (weight * res);
                 }
             }
 
@@ -406,17 +507,18 @@ class HybridPoseScaleShiftJacobianAccumulator {
                     J.col(8) = scale * Jproj * Rt * X2o;
                     J.col(7).setZero();
 
-                    //                Eigen::Matrix<double, 1, 9> num_J;
-                    //                Eigen::Matrix<double, 9, 1> dp;
-                    //                const double eps = 1e-8;
-                    //                for (int j = 0; j < 9; ++j){
-                    //                    dp.setZero();
-                    //                    dp(j, 0) = eps;
-                    //                    CameraPose fwd = step(dp, pose);
-                    //                    CameraPose bcw = step(-dp, pose);
-                    //                    num_J(0, j) = (residual_2(fwd, i) - residual_2(bcw, i)) / (2 * eps);
-                    //                }
-                    //                std::cout << "R2 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl; std::cout << "R2 - Num J: " << num_J << std::endl;
+//                    Eigen::Matrix<double, 1, 9> num_J;
+//                    Eigen::Matrix<double, 9, 1> dp;
+//                    const double eps = 1e-8;
+//                    for (int j = 0; j < 9; ++j){
+//                        dp.setZero();
+//                        dp(j, 0) = eps;
+//                        CameraPose fwd = step(dp, pose);
+//                        CameraPose bcw = step(-dp, pose);
+//                        num_J(0, j) = (residual_2(fwd, i) - residual_2(bcw, i)) / (2 * eps);
+//                    }
+//                    std::cout << "R2 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+//                    std::cout << "R2 - Num J: " << num_J << std::endl;
 
                     for (int k = 0; k < 9; ++k) {
                         for (int j = 0; j <= k; ++j) {
@@ -424,6 +526,7 @@ class HybridPoseScaleShiftJacobianAccumulator {
                         }
                     }
                     Jtr += J.transpose() * (weight * res);
+//                    Jtr_check += J.transpose() * (weight * res);
                 }
             }
 
@@ -459,18 +562,18 @@ class HybridPoseScaleShiftJacobianAccumulator {
                 J_sam.block<1, 3>(0, 0) = dF * dR;
                 J_sam.block<1, 3>(0, 3) = dF * dt;
 
-                //            Eigen::Matrix<double, 1, 9> num_J;
-                //            Eigen::Matrix<double, 9, 1> dp;
-                //            const double eps = 1e-8;
-                //            for (int j = 0; j < 9; ++j){
-                //                dp.setZero();
-                //                dp(j, 0) = eps;
-                //                CameraPose fwd = step(dp, pose);
-                //                CameraPose bcw = step(-dp, pose);
-                //                num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
-                //            }
-                //            std::cout << "R2 - Sym J: " << 2 * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
-                //            std::cout << "R2 - Num J: " << num_J << std::endl;
+//                Eigen::Matrix<double, 1, 9> num_J;
+//                Eigen::Matrix<double, 9, 1> dp;
+//                const double eps = 1e-8;
+//                for (int j = 0; j < 9; ++j){
+//                    dp.setZero();
+//                    dp(j, 0) = eps;
+//                    CameraPose fwd = step(dp, pose);
+//                    CameraPose bcw = step(-dp, pose);
+//                    num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
+//                }
+//                std::cout << "RS - Sym J: " << 2 * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
+//                std::cout << "RS - Num J: " << num_J << std::endl;
 
                 for (int k = 0; k < 9; ++k) {
                     for (int j = 0; j <= k; ++j) {
@@ -478,7 +581,22 @@ class HybridPoseScaleShiftJacobianAccumulator {
                     }
                 }
                 Jtr += weight * C * inv_nJ_C * J_sam.transpose();
+//                Jtr_check += weight * C * inv_nJ_C * J_sam.transpose();
             }
+
+//            Eigen::Matrix<double, 1, 9> num_J;
+//            Eigen::Matrix<double, 9, 1> dp;
+//            const double eps = 1e-8;
+//            for (int j = 0; j < 9; ++j){
+//                dp.setZero();
+//                dp(j, 0) = eps;
+//                CameraPose fwd = step(dp, pose);
+//                CameraPose bcw = step(-dp, pose);
+//                num_J(0, j) = (residual(fwd, i) - residual(bcw, i)) / (2 * eps);
+//            }
+//            std::cout << "RA - Sym J: " << 2 * Jtr_check.transpose() << std::endl;
+//            std::cout << "RA - Num J: " << num_J << std::endl;
+
         }
 
         return num_residuals;
@@ -496,6 +614,441 @@ class HybridPoseScaleShiftJacobianAccumulator {
     }
     typedef CameraPose param_t;
     static constexpr size_t num_params = 9;
+
+  private:
+    const std::vector<Point2D> &x1;
+    const std::vector<Point2D> &x2;
+    const std::vector<Point2D> &sigma;
+    const LossFunction &loss_fn;
+    const double scale_reproj, scale_sampson;
+    const ResidualWeightVector &weights;
+};
+
+//Hybrid optimization for absolute pose with two monodepths, optimizes both symmetric reprojection error + sampson
+//considers also scale and both shifts
+template <typename LossFunction, typename ResidualWeightVector = UniformWeightVector>
+class HybridPoseScaleJacobianAccumulator {
+  public:
+    HybridPoseScaleJacobianAccumulator(const std::vector<Point2D> &points2D_1,
+                                       const std::vector<Point2D> &points2D_2,
+                                       const std::vector<Point2D> &sigma,
+                                       const LossFunction &l,
+                                       const double scale_reproj,
+                                       const double scale_sampson,
+                                       const ResidualWeightVector &w = ResidualWeightVector())
+        : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), scale_reproj(scale_reproj),
+          scale_sampson(scale_sampson), weights(w)
+    {}
+
+    double residual(const CameraPose &pose) const {
+        const double scale = pose.scale;
+        const double shift_1 = pose.shift_1;
+        const double shift_2 = pose.shift_2;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+        for (size_t i = 0; i < x1.size(); ++i) {
+            Eigen::Matrix3d E;
+            essential_from_motion(pose, &E);
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+            double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
+                            (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
+            double r2 = scale_sampson * (C * C) / nJc_sq;
+
+            cost += weights[i] * loss_fn.loss(r2);
+
+            const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
+            const Eigen::Vector3d Z2 =
+                R.transpose() * (scale * (sigma[i](1) + shift_2) * x2[i].homogeneous().eval() - t);
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z1(2) > 0) {
+                const double inv_z1 = 1.0 / Z1(2);
+                const double r10 = Z1(0) * inv_z1 - x2[i](0);
+                const double r11 = Z1(1) * inv_z1 - x2[i](1);
+                const double r_squared1 = r10 * r10 + r11 * r11;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared1);
+            }
+
+            if (Z2(2) > 0) {
+                const double inv_z2 = 1.0 / Z2(2);
+                const double r20 = Z2(0) * inv_z2 - x1[i](0);
+                const double r21 = Z2(1) * inv_z2 - x1[i](1);
+                const double r_squared2 = r20 * r20 + r21 * r21;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared2);
+            }
+        }
+        return cost;
+    }
+
+    double residual(const CameraPose &pose, size_t i) const {
+        const double scale = pose.scale;
+        const double shift_1 = pose.shift_1;
+        const double shift_2 = pose.shift_2;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+
+            Eigen::Matrix3d E;
+            essential_from_motion(pose, &E);
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+            double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
+                            (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
+            double r2 = scale_sampson * (C * C) / nJc_sq;
+
+            cost += weights[i] * loss_fn.loss(r2);
+
+            const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
+            const Eigen::Vector3d Z2 =
+                R.transpose() * (scale * (sigma[i](1) + shift_2) * x2[i].homogeneous().eval() - t);
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z1(2) > 0) {
+                const double inv_z1 = 1.0 / Z1(2);
+                const double r10 = Z1(0) * inv_z1 - x2[i](0);
+                const double r11 = Z1(1) * inv_z1 - x2[i](1);
+                const double r_squared1 = r10 * r10 + r11 * r11;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared1);
+            }
+
+            if (Z2(2) > 0) {
+                const double inv_z2 = 1.0 / Z2(2);
+                const double r20 = Z2(0) * inv_z2 - x1[i](0);
+                const double r21 = Z2(1) * inv_z2 - x1[i](1);
+                const double r_squared2 = r20 * r20 + r21 * r21;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared2);
+            }
+        return cost;
+    }
+
+    double residual_1(const CameraPose &pose, size_t i) const {
+        const double shift_1 = pose.shift_1;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+
+        const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z1(2) > 0) {
+                const double inv_z1 = 1.0 / Z1(2);
+                const double r10 = Z1(0) * inv_z1 - x2[i](0);
+                const double r11 = Z1(1) * inv_z1 - x2[i](1);
+                const double r_squared1 = r10 * r10 + r11 * r11;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared1);
+            }
+        return cost;
+    }
+
+    double residual_2(const CameraPose &pose, size_t i) const {
+        const double scale = pose.scale;
+        const double shift_2 = pose.shift_2;
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Vector3d t = pose.t;
+
+        double cost = 0;
+            const Eigen::Vector3d Z2 =
+                R.transpose() * (scale * (sigma[i](1) + shift_2) * x2[i].homogeneous().eval() - t);
+            // during the optimization
+            if (Z2(2) > 0) {
+                const double inv_z2 = 1.0 / Z2(2);
+                const double r20 = Z2(0) * inv_z2 - x1[i](0);
+                const double r21 = Z2(1) * inv_z2 - x1[i](1);
+                const double r_squared2 = r20 * r20 + r21 * r21;
+                cost += weights[i] * loss_fn.loss(scale_reproj * r_squared2);
+            }
+        return cost;
+    }
+
+    double residual_s(const CameraPose &pose, size_t i) const {
+        double cost = 0;
+
+            Eigen::Matrix3d E;
+            essential_from_motion(pose, &E);
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+            double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
+                            (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
+            double r2 = scale_sampson * (C * C) / nJc_sq;
+
+            cost += weights[i] * loss_fn.loss(r2);
+        return cost;
+    }
+
+    size_t accumulate(const CameraPose &pose, Eigen::Matrix<double, 7, 7> &JtJ,
+                      Eigen::Matrix<double, 7, 1> &Jtr) const {
+        Eigen::Matrix3d R = pose.R();
+        Eigen::Matrix3d Rt = R.transpose();
+        const double scale = pose.scale;
+        const double shift_1 = pose.shift_1;
+        const double shift_2 = pose.shift_2;
+        // const double scale = 1.0;
+
+        Eigen::Matrix<double, 2, 7> J;
+        Eigen::Matrix<double, 2, 3> Jproj;
+
+        Eigen::Matrix3d E;
+        essential_from_motion(pose, &E);
+
+        // Matrices contain the jacobians of E w.r.t. the rotation and translation parameters
+        Eigen::Matrix<double, 9, 3> dR;
+        Eigen::Matrix<double, 9, 3> dt;
+        Eigen::Matrix<double, 1, 7> J_sam;
+        J_sam.setZero();
+
+        // Each column is vec(E*skew(e_k)) where e_k is k:th basis vector
+        dR.block<3, 1>(0, 0).setZero();
+        dR.block<3, 1>(0, 1) = -E.col(2);
+        dR.block<3, 1>(0, 2) = E.col(1);
+        dR.block<3, 1>(3, 0) = E.col(2);
+        dR.block<3, 1>(3, 1).setZero();
+        dR.block<3, 1>(3, 2) = -E.col(0);
+        dR.block<3, 1>(6, 0) = -E.col(1);
+        dR.block<3, 1>(6, 1) = E.col(0);
+        dR.block<3, 1>(6, 2).setZero();
+
+        Eigen::Matrix3d dt_0, dt_1, dt_2;
+        dt_0.row(0).setZero();
+        dt_0.row(1) = -R.row(2);
+        dt_0.row(2) = R.row(1);
+
+        dt_1.row(0) = R.row(2);
+        dt_1.row(1).setZero();
+        dt_1.row(2) = - R.row(0);
+
+        dt_2.row(0) = - R.row(1);
+        dt_2.row(1) = R.row(0);
+        dt_2.row(2).setZero();
+
+        dt.col(0) = Eigen::Map<Eigen::VectorXd>(dt_0.data(), dt_0.size());
+        dt.col(1) = Eigen::Map<Eigen::VectorXd>(dt_1.data(), dt_1.size());
+        dt.col(2) = Eigen::Map<Eigen::VectorXd>(dt_2.data(), dt_2.size());
+
+//        Eigen::Matrix<double, 9, 1> Jtr_check;
+
+
+        size_t num_residuals = 0;
+        for (size_t i = 0; i < x1.size(); ++i) {
+//            Jtr_check.setZero();
+            const Eigen::Vector3d X1o = x1[i].homogeneous().eval();
+            const Eigen::Vector3d X1i = (sigma[i](0) + shift_1) * X1o;
+            const Eigen::Vector3d Z1 = R * X1i + pose.t;
+
+            const Eigen::Vector3d X2o = x2[i].homogeneous().eval();
+            const Eigen::Vector3d X2s = (sigma[i](1) + shift_2) * X2o;
+            const Eigen::Vector3d X2i = scale * X2s;
+            const Eigen::Vector3d Z2 = Rt * (X2i - pose.t);
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            //            if (Z1(2) < 0 && Z2(2) < 0)
+            //                continue;
+
+            if (Z1(2) > 0) {
+                Eigen::Vector2d zp;
+                const double inv_z = 1.0 / Z1(2);
+                zp[0] = Z1(0) * inv_z;
+                zp[1] = Z1(1) * inv_z;
+
+                Jproj(0, 0) = inv_z;
+                Jproj(1, 1) = inv_z;
+                Jproj(0, 2) = -Z1(0) * inv_z * inv_z;
+                Jproj(1, 2) = -Z1(1) * inv_z * inv_z;
+
+                // Compute reprojection error
+                Eigen::Vector2d res = zp - x2[i];
+
+                const double r_squared = scale_reproj * res.squaredNorm();
+                const double weight = weights[i] * loss_fn.weight(r_squared);
+
+                if (weight > 0.0) {
+                    num_residuals++;
+
+                    // Jacobian w.r.t. rotation w
+                    Eigen::Matrix<double, 2, 3> dZ = Jproj * R;
+                    J.col(0) = -X1i(2) * dZ.col(1) + X1i(1) * dZ.col(2);
+                    J.col(1) = X1i(2) * dZ.col(0) - X1i(0) * dZ.col(2);
+                    J.col(2) = -X1i(1) * dZ.col(0) + X1i(0) * dZ.col(1);
+                    // Jacobian w.r.t. translation t
+                    J.block<2, 3>(0, 3) = Jproj;
+                    // Jacobian w.r.t. shift_1
+                    J.col(6).setZero();
+
+
+//                    Eigen::Matrix<double, 1, 9> num_J;
+//                    Eigen::Matrix<double, 9, 1> dp;
+//                    double eps = 1.0e-6;
+//                    for (int j = 0; j < 9; ++j){
+//                        dp.setZero();
+//                        dp(j, 0) = eps;
+//                        CameraPose fwd_image_triplet = step(dp, pose);
+//                        CameraPose bcw_image_triplet = step(-dp, pose);
+//                        dp.setZero();
+//                        num_J(0, j) = (residual_1(fwd_image_triplet, i) - residual_1(bcw_image_triplet, i)) / (2 *                                                                                                           eps);
+//                    }
+//
+//                    std::cout << "R1 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+//                    std::cout << "R1 - Num J: " << num_J << std::endl;
+
+
+                    for (int k = 0; k < 9; ++k) {
+                        for (int j = 0; j <= k; ++j) {
+                            JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                        }
+                    }
+                    Jtr += J.transpose() * (weight * res);
+//                    Jtr_check += J.transpose() * (weight * res);
+                }
+            }
+
+            // Note this assumes points that are behind the camera will stay behind the camera
+            // during the optimization
+            if (Z2(2) > 0) {
+                Eigen::Vector2d zp;
+                const double inv_z = 1.0 / Z2(2);
+                zp[0] = Z2(0) * inv_z;
+                zp[1] = Z2(1) * inv_z;
+
+                Jproj(0, 0) = inv_z;
+                Jproj(1, 1) = inv_z;
+                Jproj(0, 2) = -Z2(0) * inv_z * inv_z;
+                Jproj(1, 2) = -Z2(1) * inv_z * inv_z;
+
+                // Compute reprojection error
+                Eigen::Vector2d res = zp - x1[i];
+
+                const double r_squared = scale_reproj * res.squaredNorm();
+                const double weight = weights[i] * loss_fn.weight(r_squared);
+
+                if (weight > 0.0) {
+                    num_residuals++;
+
+                    Eigen::Vector3d X2t = X2i - pose.t; // - pose.t;
+
+                    Eigen::Matrix3d dZdr;
+                    dZdr.diagonal().setZero();
+                    dZdr(1, 0) = X2t.dot(R.col(2));
+                    dZdr(2, 0) = -X2t.dot(R.col(1));
+                    dZdr(0, 1) = -X2t.dot(R.col(2));
+                    dZdr(2, 1) = X2t.dot(R.col(0));
+                    dZdr(0, 2) = X2t.dot(R.col(1));
+                    dZdr(1, 2) = -X2t.dot(R.col(0));
+                    J.block<2, 3>(0, 0) = Jproj * dZdr;
+
+                    // Jacobian w.r.t. translation t
+                    J.block<2, 3>(0, 3) = -Jproj * Rt;
+                    // Jacobian w.r.t. camera parameters
+                    J.col(6) = Jproj * Rt * X2s;
+
+//                    Eigen::Matrix<double, 1, 9> num_J;
+//                    Eigen::Matrix<double, 9, 1> dp;
+//                    const double eps = 1e-8;
+//                    for (int j = 0; j < 9; ++j){
+//                        dp.setZero();
+//                        dp(j, 0) = eps;
+//                        CameraPose fwd = step(dp, pose);
+//                        CameraPose bcw = step(-dp, pose);
+//                        num_J(0, j) = (residual_2(fwd, i) - residual_2(bcw, i)) / (2 * eps);
+//                    }
+//                    std::cout << "R2 - Sym J: " << 2 * (J.transpose() * (weight * res)).transpose() << std::endl;
+//                    std::cout << "R2 - Num J: " << num_J << std::endl;
+
+                    for (int k = 0; k < 7; ++k) {
+                        for (int j = 0; j <= k; ++j) {
+                            JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                        }
+                    }
+                    Jtr += J.transpose() * (weight * res);
+//                    Jtr_check += J.transpose() * (weight * res);
+                }
+            }
+
+            double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
+
+            // J_C is the Jacobian of the epipolar constraint w.r.t. the image points
+            Eigen::Vector4d J_C;
+            J_C << E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous(), E.block<2, 3>(0, 0) * x1[i].homogeneous();
+            const double nJ_C = J_C.norm();
+            const double inv_nJ_C = 1.0 / nJ_C;
+            const double r = C * inv_nJ_C;
+
+            // Compute weight from robust loss function (used in the IRLS)
+            const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
+            if (weight > 0) {
+                num_residuals++;
+
+                // Compute Jacobian of Sampson error w.r.t the fundamental/essential matrix (3x3)
+                Eigen::Matrix<double, 1, 9> dF;
+                dF << x1[i](0) * x2[i](0), x1[i](0) * x2[i](1), x1[i](0), x1[i](1) * x2[i](0), x1[i](1) * x2[i](1),
+                    x1[i](1), x2[i](0), x2[i](1), 1.0;
+                const double s = C * inv_nJ_C * inv_nJ_C;
+                dF(0) -= s * (J_C(2) * x1[i](0) + J_C(0) * x2[i](0));
+                dF(1) -= s * (J_C(3) * x1[i](0) + J_C(0) * x2[i](1));
+                dF(2) -= s * (J_C(0));
+                dF(3) -= s * (J_C(2) * x1[i](1) + J_C(1) * x2[i](0));
+                dF(4) -= s * (J_C(3) * x1[i](1) + J_C(1) * x2[i](1));
+                dF(5) -= s * (J_C(1));
+                dF(6) -= s * (J_C(2));
+                dF(7) -= s * (J_C(3));
+                dF *= inv_nJ_C;
+
+                J_sam.block<1, 3>(0, 0) = dF * dR;
+                J_sam.block<1, 3>(0, 3) = dF * dt;
+
+//                Eigen::Matrix<double, 1, 9> num_J;
+//                Eigen::Matrix<double, 9, 1> dp;
+//                const double eps = 1e-8;
+//                for (int j = 0; j < 9; ++j){
+//                    dp.setZero();
+//                    dp(j, 0) = eps;
+//                    CameraPose fwd = step(dp, pose);
+//                    CameraPose bcw = step(-dp, pose);
+//                    num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
+//                }
+//                std::cout << "RS - Sym J: " << 2 * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
+//                std::cout << "RS - Num J: " << num_J << std::endl;
+
+                for (int k = 0; k < 7; ++k) {
+                    for (int j = 0; j <= k; ++j) {
+                        JtJ(k, j) += weight * (J_sam(k) * J_sam(j));
+                    }
+                }
+                Jtr += weight * C * inv_nJ_C * J_sam.transpose();
+//                Jtr_check += weight * C * inv_nJ_C * J_sam.transpose();
+            }
+
+//            Eigen::Matrix<double, 1, 9> num_J;
+//            Eigen::Matrix<double, 9, 1> dp;
+//            const double eps = 1e-8;
+//            for (int j = 0; j < 9; ++j){
+//                dp.setZero();
+//                dp(j, 0) = eps;
+//                CameraPose fwd = step(dp, pose);
+//                CameraPose bcw = step(-dp, pose);
+//                num_J(0, j) = (residual(fwd, i) - residual(bcw, i)) / (2 * eps);
+//            }
+//            std::cout << "RA - Sym J: " << 2 * Jtr_check.transpose() << std::endl;
+//            std::cout << "RA - Num J: " << num_J << std::endl;
+
+        }
+
+        return num_residuals;
+    }
+
+    CameraPose step(Eigen::Matrix<double, 7, 1> dp, const CameraPose &pose) const {
+        CameraPose pose_new;
+        pose_new.q = quat_step_post(pose.q, dp.block<3, 1>(0, 0));
+        //        pose_new.t = pose.t + pose.rotate(dp.block<3, 1>(3, 0));
+        pose_new.t = pose.t + dp.block<3, 1>(3, 0);
+        pose_new.scale = pose.scale + dp(6, 0);
+        return pose_new;
+    }
+    typedef CameraPose param_t;
+    static constexpr size_t num_params = 7;
 
   private:
     const std::vector<Point2D> &x1;

@@ -304,6 +304,48 @@ BundleStats refine_calib_hybrid_scale_shift(const std::vector<Point2D> &x1, cons
     }
 }
 
+// hybrid scale
+template <typename WeightType, typename LossFunction>
+BundleStats refine_calib_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                      const std::vector<Point2D> &sigma, CameraPose *pose,
+                                      const double scale_reproj, const double scale_sampson,
+                                      const BundleOptions &opt, const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    HybridPoseScaleJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, scale_reproj,
+                                                                       scale_sampson, weights);
+    return lm_impl<decltype(accum)>(accum, pose, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_calib_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                      const std::vector<Point2D> &sigma, CameraPose *pose,
+                                      const double scale_reproj, const double scale_sampson,
+                                      const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_calib_hybrid_scale<WeightType, LossFunction>(x1, x2, sigma, pose, scale_reproj, scale_sampson,       \
+                                                               opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+BundleStats refine_calib_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                            const std::vector<Point2D> &sigma, CameraPose *pose,
+                                            const double scale_reproj, const double scale_sampson,
+                                            const BundleOptions &opt, const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_calib_hybrid_scale<std::vector<double>>(x1, x2, sigma, pose, scale_reproj, scale_sampson,
+                                                              opt, weights);
+    } else {
+        return refine_calib_hybrid_scale<UniformWeightVector>(x1, x2, sigma, pose, scale_reproj, scale_sampson,
+                                                              opt, UniformWeightVector());
+    }
+}
+
 //-------------------------------------
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////

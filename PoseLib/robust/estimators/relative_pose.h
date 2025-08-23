@@ -257,7 +257,7 @@ class RelativePoseMonoDepthEstimator {
                 X1[i] = sigma[i](0) * x1[i].homogeneous();
         }
 
-        scale_reproj = 1 / (opt.max_reproj_error * opt.max_epipolar_error);
+        scale_reproj = 1 / (opt.max_reproj_error * opt.max_reproj_error);
         scale_sampson = 1 / (opt.max_epipolar_error * opt.max_epipolar_error);
     }
     void generate_models(std::vector<CameraPose> *models);

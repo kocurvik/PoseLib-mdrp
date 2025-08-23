@@ -579,7 +579,10 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
             if (opt.optimize_hybrid) {
                 // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
                 bundle_opt.loss_scale = 1.0 * 8.0 * factor;
-                refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+                if (opt.optimize_shift)
+                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+                else
+                    refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
                 continue;
             }
 
@@ -613,8 +616,12 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     if (opt.optimize_hybrid) {
         // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
         bundle_opt.loss_scale = 1.0;
-        refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+        if (opt.optimize_shift)
+            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+        else
+            refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
         return;
+
     }
 
     if (opt.use_reproj) {

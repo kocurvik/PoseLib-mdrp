@@ -128,8 +128,8 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
         Eigen::Vector3d t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
 
         CameraPose pose = CameraPose(rot, t);
-        pose.shift_1 = u;
-        pose.shift_2 = v;
+//        pose.shift_1 = u;
+//        pose.shift_2 = v;
         pose.scale = s;
         rel_pose->emplace_back(pose);
         num_sols++;
