@@ -273,7 +273,13 @@ RansacStats estimate_relative_pose_w_mono_depth(
             double scale_sampson = 1.0 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error);
             scaled_bundle_opt.loss_scale = 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
 //            refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, scaled_bundle_opt);
-            refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, scaled_bundle_opt);
+            if (ransac_opt.optimize_shift){
+                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson,
+                                                scaled_bundle_opt);
+            } else {
+                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson,
+                                          scaled_bundle_opt);
+            }
             return stats;
         }
 
