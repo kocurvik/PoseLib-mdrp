@@ -28,7 +28,6 @@
 
 #include "robust.h"
 
-#include "PoseLib/robust/bundle_wip.h"
 #include "PoseLib/robust/utils.h"
 
 #include <iostream>
@@ -268,18 +267,24 @@ RansacStats estimate_relative_pose_w_mono_depth(
             sigma_inliers.push_back(sigmas[k]);
         }
         BundleOptions scaled_bundle_opt = bundle_opt;
+
+        if (ransac_opt.optimize_hybrid){
+            double scale_reproj = 1.0 / (ransac_opt_scaled.max_reproj_error * ransac_opt_scaled.max_reproj_error);
+            double scale_sampson = 1.0 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error);
+            scaled_bundle_opt.loss_scale = 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+            refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, scaled_bundle_opt);
+            return stats;
+        }
+
         scaled_bundle_opt.loss_scale = bundle_opt.loss_scale * 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+
         if (ransac_opt.use_reproj) {
-            if (ransac_opt.optimize_shift){
-                refine_calib_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
+            if (ransac_opt.optimize_symmetric){
+                refine_calib_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
                 return stats;
             }
-            if (ransac_opt.sym_repro){
-                double scale_reproj = 1.0 / (ransac_opt_scaled.max_reproj_error * ransac_opt_scaled.max_reproj_error);
-                double scale_sampson = 1.0 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error);
-                BundleOptions ba_bundle_opt = bundle_opt;
-                ba_bundle_opt.loss_scale = 1.0;
-                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, ba_bundle_opt);
+            if (ransac_opt.optimize_shift){
+                refine_calib_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
                 return stats;
             }
             std::vector<Point3D> X(x1_inliers.size());
@@ -420,7 +425,7 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
             if (ransac_opt.optimize_shift) {
                 refine_shared_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             } 
-            else if (ransac_opt.sym_repro) {
+            else if (ransac_opt.optimize_symmetric) {
                 refine_shared_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             }
             else {
@@ -499,7 +504,7 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift)
                 refine_varying_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
-            else if (ransac_opt.sym_repro)
+            else if (ransac_opt.optimize_symmetric)
                 refine_varying_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             else
                 refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);

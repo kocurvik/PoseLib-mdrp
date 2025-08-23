@@ -30,7 +30,6 @@
 
 #include "PoseLib/misc/essential.h"
 #include "PoseLib/robust/bundle.h"
-#include "PoseLib/robust/bundle_wip.h"
 #include "PoseLib/solvers/gen_relpose_5p1pt.h"
 #include "PoseLib/solvers/p3p.h"
 #include "PoseLib/solvers/relpose_5pt.h"
@@ -200,7 +199,7 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
                 bundle_opt.loss_scale = tol;
                 if (opt.optimize_shift)
                     refine_shared_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
-                else if (opt.sym_repro)
+                else if (opt.optimize_symmetric)
                     refine_shared_focal_symrepro_scale(x1, x2, sigma, image_pair, bundle_opt);
                 else
                     refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
@@ -217,7 +216,7 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
         bundle_opt.loss_scale = opt.max_reproj_error;
         if (opt.optimize_shift)
             refine_shared_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
-        else if (opt.sym_repro)
+        else if (opt.optimize_symmetric)
             refine_shared_focal_symrepro_scale(x1, x2, sigma, image_pair, bundle_opt);
         else
             refine_shared_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
@@ -339,7 +338,7 @@ void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_p
 
                 if (opt.optimize_shift)
                     refine_varying_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
-                else if (opt.sym_repro)
+                else if (opt.optimize_symmetric)
                     refine_varying_focal_symrepro_scale(x1, x2, sigma, image_pair, bundle_opt);
                 else
                     refine_varying_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
@@ -356,7 +355,7 @@ void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_p
         bundle_opt.loss_scale = opt.max_reproj_error;
         if (opt.optimize_shift)
             refine_varying_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
-        else if (opt.sym_repro)
+        else if (opt.optimize_symmetric)
             refine_varying_focal_symrepro_scale(x1, x2, sigma, image_pair, bundle_opt);
         else
             refine_varying_focal_abspose(x1, x2, sigma, image_pair, bundle_opt);
@@ -577,66 +576,60 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
         for (int k = 0; k < opt.graduated_steps; ++k) {
             double factor = (opt.graduated_steps - k) / static_cast<double>(opt.graduated_steps);
 
+            if (opt.optimize_hybrid) {
+                // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
+                bundle_opt.loss_scale = 1.0 * 8.0 * factor;
+                refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+                continue;
+            }
+
             if (opt.use_reproj) {
                 double tol = opt.max_reproj_error * 8.0 * factor;
                 bundle_opt.loss_scale = tol;
 
+                if (opt.optimize_symmetric) {
+                    refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+                    continue;
+                }
+
                 if (opt.optimize_shift) {
                     refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
-                } 
-                else if (opt.sym_repro) {
-                    // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
-                    bundle_opt.loss_scale = 1.0 * 8.0 * factor;
-                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
-                } 
-                else {
-                    bundle_adjust(x2, X1, pose, bundle_opt);
+                    continue;
                 }
+
+                bundle_adjust(x2, X1, pose, bundle_opt);
+                continue;
             } else {
                 double tol = opt.max_epipolar_error * 8.0 * factor;
                 bundle_opt.loss_scale = tol;
                 refine_relpose(x1, x2, pose, bundle_opt);
+                continue;
             }
         }
     }
 
     bundle_opt.max_iterations = opt.lo_iterations;
 
-    //    std::vector<char> inliers;
-    //    int num_inl = get_inliers(*pose, x1, x2, 5 * (opt.max_epipolar_error * opt.max_epipolar_error), &inliers);
-    //
-    //    std::vector<Eigen::Vector2d> x1_inlier, x2_inlier;
-    //    x1_inlier.reserve(num_inl);
-    //    x2_inlier.reserve(num_inl);
-    //
-    //    if (num_inl <= 5) {
-    //        return;
-    //    }
-    //
-    //    for (size_t pt_k = 0; pt_k < x1.size(); ++pt_k) {
-    //        if (inliers[pt_k]) {
-    //            x1_inlier.push_back(x1[pt_k]);
-    //            x2_inlier.push_back(x2[pt_k]);
-    //        }
-    //    }
+    if (opt.optimize_hybrid) {
+        // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
+        bundle_opt.loss_scale = 1.0;
+        refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+        return;
+    }
 
     if (opt.use_reproj) {
         bundle_opt.loss_scale = opt.max_reproj_error;
+        if (opt.optimize_symmetric) {
+            refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+        }
         if (opt.optimize_shift) {
             refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
             return;
         }
-        if (opt.sym_repro) {
-            // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
-            bundle_opt.loss_scale = 1.0;
-            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
-            return;
-        } 
         bundle_adjust(x2, X1, pose, bundle_opt);
         return;
     }
     bundle_opt.loss_scale = opt.max_epipolar_error;
     refine_relpose(x1, x2, pose, bundle_opt);
-    return;
 }
 } // namespace poselib
