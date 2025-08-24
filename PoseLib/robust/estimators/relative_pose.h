@@ -258,7 +258,7 @@ class RelativePoseMonoDepthEstimator {
         }
 
         scale_reproj = (opt.max_reproj_error > 0.0) ? 1 / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
-        scale_sampson = (opt.max_epipolar_error) ? 1 / (opt.max_epipolar_error * opt.max_epipolar_error): 0.0;
+        scale_sampson = (opt.max_epipolar_error > 0.0) ? 1 / (opt.max_epipolar_error * opt.max_epipolar_error): 0.0;
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
