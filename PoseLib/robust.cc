@@ -267,17 +267,17 @@ RansacStats estimate_relative_pose_w_mono_depth(
             sigma_inliers.push_back(sigmas[k]);
         }
         BundleOptions scaled_bundle_opt = bundle_opt;
+//        scaled_bundle_opt.loss_type = BundleOptions::TRIVIAL;
 
         if (ransac_opt.optimize_hybrid){
-            double scale_reproj = 1.0 / (ransac_opt_scaled.max_reproj_error * ransac_opt_scaled.max_reproj_error);
-            double scale_sampson = 1.0 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error);
-            scaled_bundle_opt.loss_scale = 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
-//            refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson, scaled_bundle_opt);
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? 1 / (ransac_opt_scaled.max_reproj_error * ransac_opt_scaled.max_reproj_error) : 0.0;
+            double scale_sampson = (ransac_opt.max_epipolar_error) ? 1 / (ransac_opt_scaled.max_epipolar_error * ransac_opt_scaled.max_epipolar_error): 0.0;
+            scaled_bundle_opt.loss_scale = bundle_opt.loss_scale;
             if (ransac_opt.optimize_shift){
-                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson,
+                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, scale_sampson,
                                                 scaled_bundle_opt);
             } else {
-                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigmas, pose, scale_reproj, scale_sampson,
+                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, scale_sampson,
                                           scaled_bundle_opt);
             }
             return stats;
