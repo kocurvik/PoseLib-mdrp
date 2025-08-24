@@ -553,16 +553,16 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
     throw std::runtime_error("No solver called");
 }
 double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
-    // if (opt.use_reproj) {
-    //     if (opt.optimize_shift) {
-    //         std::vector<Point3D> X1s(x1.size());
-    //         double shift = pose.shift_1;
-    //         for (size_t i = 0; i < x1.size(); ++i)
-    //             X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
-    //         return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-    //     }
-    //     return compute_msac_score(pose, x2, X1, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-    // }
+    if (opt.use_reproj) {
+        if (opt.optimize_shift) {
+            std::vector<Point3D> X1s(x1.size());
+            double shift = pose.shift_1;
+            for (size_t i = 0; i < x1.size(); ++i)
+                X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
+            return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+        }
+        return compute_msac_score(pose, x2, X1, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+    }
     return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
 }
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
@@ -615,7 +615,7 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
 
     if (opt.optimize_hybrid) {
         // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
-        bundle_opt.loss_scale = opt.max_reproj_error;
+        bundle_opt.loss_scale = 1.0;
         if (opt.optimize_shift)
             refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
         else {
