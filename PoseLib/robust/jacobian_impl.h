@@ -661,7 +661,7 @@ class HybridPoseScaleJacobianAccumulator {
                                 (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
                 double r2 = scale_sampson * (C * C) / nJc_sq;
 
-                cost += weights[i] * loss_fn.loss(r2);
+                cost += weights[i] * loss_fn.loss(r2) * 2.0;
             }
 
             if (scale_reproj > 0.0) {
@@ -985,7 +985,7 @@ class HybridPoseScaleJacobianAccumulator {
                 const double r = C * inv_nJ_C;
 
                 // Compute weight from robust loss function (used in the IRLS)
-                const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
+                const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r) * 2.0;
                 if (weight > 0) {
                     num_residuals++;
 
