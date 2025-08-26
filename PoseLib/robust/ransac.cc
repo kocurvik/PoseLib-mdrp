@@ -109,6 +109,12 @@ RansacStats ransac_relpose_w_mono_depth(const std::vector<Point2D> &x1, const st
     best_model->t.setZero();
     RelativePoseMonoDepthEstimator estimator(opt, x1, x2, sigmas);
     RansacStats stats = ransac<RelativePoseMonoDepthEstimator>(estimator, opt, best_model);
+//    if (opt.optimize_hybrid) {
+//        get_inliers(*best_model, x1, x2, sigmas, opt.max_reproj_error * opt.max_reproj_error,
+//                    opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
+//        return stats;
+//    }
+
     if (opt.use_reproj) {
         std::vector<Point3D> X(x1.size());
         if (opt.optimize_shift){

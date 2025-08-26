@@ -535,7 +535,7 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
             x2s[k] = x2[sample[k]];
             sigmas[k] = mono_depth[sample[k]];
         }
-        essential_3pt_mono_depth(x1s, x2s, sigmas, models);
+        essential_3pt_mono_depth(x1s, x2s, sigmas, models, opt.optimize_shift);
         return;
     }
 
@@ -545,13 +545,17 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
             x2s[k] = x2[sample[k]];
             sigmas[k] = mono_depth[sample[k]];
         }
-        essential_3pt_mono_madpose(x1s, x2s, sigmas, models);
+        essential_3pt_mono_madpose(x1s, x2s, sigmas, models, opt.optimize_shift);
         return;
     }
-
     throw std::runtime_error("No solver called");
 }
 double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
+//    if (opt.optimize_hybrid) {
+//        return compute_hybrid_msac_score(pose, x1, x2, mono_depth, opt.max_reproj_error * opt.max_reproj_error,
+//                                         opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
+//    }
+
     if (opt.use_reproj) {
         if (opt.optimize_shift) {
             std::vector<Point3D> X1s(x1.size());

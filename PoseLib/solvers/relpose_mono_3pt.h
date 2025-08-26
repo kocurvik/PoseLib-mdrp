@@ -5,9 +5,11 @@
 #include <vector>
 namespace poselib {
 int essential_3pt_mono_depth(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                            const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose);
+                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose,
+                             bool keep_shift = false);
 
 int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                            const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose);
+                            const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose,
+                               bool keep_shift = false);
 }; // namespace poselib
 #endif
