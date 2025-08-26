@@ -109,6 +109,8 @@ class SharedFocalMonodepthRelativePoseEstimator {
         x1h.resize(x1.size());
         for (size_t i = 0; i < x1.size(); ++i)
             x1h[i] = x1[i].homogeneous();
+        scale_reproj = (opt.max_reproj_error > 0.0) ? 1.0 / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        scale_sampson = (opt.max_epipolar_error > 0.0) ?  1.0 / (opt.max_epipolar_error * opt.max_epipolar_error): 0.0;
     }
 
     void generate_models(ImagePairVector *models);
