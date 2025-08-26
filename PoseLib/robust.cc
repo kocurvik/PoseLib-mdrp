@@ -440,7 +440,13 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
                 refine_shared_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, scale_sampson,
                                           scaled_bundle_opt);
             // }
-            // return stats;
+            image_pair->camera1.params[0] *= scale;
+            image_pair->camera1.params[1] = 0; // pp(0);
+            image_pair->camera1.params[2] = 0; // pp(1);
+
+            image_pair->camera2 = image_pair->camera1;
+
+            return stats;
         }
 
         if (ransac_opt.use_reproj) {
