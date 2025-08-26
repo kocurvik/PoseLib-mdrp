@@ -463,10 +463,10 @@ class HybridPoseScaleShiftJacobianAccumulator {
 
                     for (int k = 0; k < 9; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                            JtJ(k, j) += scale_reproj * weight * (J.col(k).dot(J.col(j)));
                         }
                     }
-                    Jtr += J.transpose() * (weight * res);
+                    Jtr += J.transpose() * (scale_reproj * weight * res);
 //                    Jtr_check += J.transpose() * (weight * res);
                 }
             }
@@ -527,10 +527,10 @@ class HybridPoseScaleShiftJacobianAccumulator {
 
                     for (int k = 0; k < 9; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                            JtJ(k, j) += scale_reproj * weight * (J.col(k).dot(J.col(j)));
                         }
                     }
-                    Jtr += J.transpose() * (weight * res);
+                    Jtr += J.transpose() * (scale_reproj * weight * res);
 //                    Jtr_check += J.transpose() * (weight * res);
                 }
             }
@@ -582,10 +582,10 @@ class HybridPoseScaleShiftJacobianAccumulator {
 
                 for (int k = 0; k < 9; ++k) {
                     for (int j = 0; j <= k; ++j) {
-                        JtJ(k, j) += weight * (J_sam(k) * J_sam(j));
+                        JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
                     }
                 }
-                Jtr += weight * C * inv_nJ_C * J_sam.transpose();
+                Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
 //                Jtr_check += weight * C * inv_nJ_C * J_sam.transpose();
             }
 
