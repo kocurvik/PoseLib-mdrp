@@ -908,10 +908,10 @@ class HybridPoseScaleJacobianAccumulator {
 
                         for (int k = 0; k < 7; ++k) {
                             for (int j = 0; j <= k; ++j) {
-                                JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                                JtJ(k, j) += scale_reproj * weight * (J.col(k).dot(J.col(j)));
                             }
                         }
-                        Jtr += J.transpose() * (weight * res);
+                        Jtr += J.transpose() * (scale_reproj * weight * res);
                     }
                 }
 
@@ -968,10 +968,10 @@ class HybridPoseScaleJacobianAccumulator {
 
                         for (int k = 0; k < 7; ++k) {
                             for (int j = 0; j <= k; ++j) {
-                                JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                                JtJ(k, j) += scale_reproj * weight * (J.col(k).dot(J.col(j)));
                             }
                         }
-                        Jtr += J.transpose() * (weight * res);
+                        Jtr += J.transpose() * (scale_reproj * weight * res);
                     }
                 }
             }
@@ -1009,25 +1009,25 @@ class HybridPoseScaleJacobianAccumulator {
                     J_sam.block<1, 3>(0, 0) = dF * dR;
                     J_sam.block<1, 3>(0, 3) = dF * dt;
 
-                    //                Eigen::Matrix<double, 1, 9> num_J;
-                    //                Eigen::Matrix<double, 9, 1> dp;
-                    //                const double eps = 1e-8;
-                    //                for (int j = 0; j < 9; ++j){
-                    //                    dp.setZero();
-                    //                    dp(j, 0) = eps;
-                    //                    CameraPose fwd = step(dp, pose);
-                    //                    CameraPose bcw = step(-dp, pose);
-                    //                    num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
-                    //                }
-                    //                std::cout << "RS - Sym J: " << 2 * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
-                    //                std::cout << "RS - Num J: " << num_J << std::endl;
+                    // Eigen::Matrix<double, 1, 7> num_J;
+                    // Eigen::Matrix<double, 7, 1> dp;
+                    // const double eps = 1e-8;
+                    // for (int j = 0; j < 7; ++j){
+                    //     dp.setZero();
+                    //     dp(j, 0) = eps;
+                    //     CameraPose fwd = step(dp, pose);
+                    //     CameraPose bcw = step(-dp, pose);
+                    //     num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
+                    // }
+                    // std::cout << "RS - Sym J: " << 2 * scale_sampson * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
+                    // std::cout << "RS - Num J: " << num_J << std::endl;
 
                     for (int k = 0; k < 7; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += weight * (J_sam(k) * J_sam(j));
+                            JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
                         }
                     }
-                    Jtr += weight * C * inv_nJ_C * J_sam.transpose();
+                    Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
                 }
             }
         }
@@ -1408,6 +1408,7 @@ class HybridSharedFocalScaleJacobianAccumulator {
                         (F.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
 
         double r2 = scale_sampson * (C * C) / nJc_sq;
+        // std::cout << scale_sampson << std::endl;
 
         cost += weights[i] * loss_fn.loss(r2);
         return cost;
@@ -1559,10 +1560,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
 
                         for (int k = 0; k < 8; ++k) {
                             for (int j = 0; j <= k; ++j) {
-                                JtJ(k, j) += weight * (J.col(k).dot(J.col(j)));
+                                JtJ(k, j) += scale_reproj * weight * (J.col(k).dot(J.col(j)));
                             }
                         }
-                        Jtr += J.transpose() * (weight * res);
+                        Jtr += J.transpose() * (scale_reproj * weight * res);
                     }
                 }
 
@@ -1621,10 +1622,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
 
                         for (int k = 0; k < 8; ++k) {
                             for (int j = 0; j <= k; ++j) {
-                                JtJ(k, j) += weightn * (Jn.col(k).dot(Jn.col(j)));
+                                JtJ(k, j) += scale_reproj * weightn * (Jn.col(k).dot(Jn.col(j)));
                             }
                         }
-                        Jtr += Jn.transpose() * (weightn * rn);
+                        Jtr += Jn.transpose() * (scale_reproj * weightn * rn);
                     }
                 }
             }
@@ -1640,6 +1641,7 @@ class HybridSharedFocalScaleJacobianAccumulator {
                 const double r = C * inv_nJ_C;
 
                 // Compute weight from robust loss function (used in the IRLS)
+                // std::cout << scale_sampson << std::endl;
                 const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
                 if (weight > 0) {
                     num_residuals++;
@@ -1678,10 +1680,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
 
                     for (int k = 0; k < 8; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += weight * (J_sam(k) * J_sam(j));
+                            JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
                         }
                     }
-                    Jtr += weight * C * inv_nJ_C * J_sam.transpose();
+                    Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
                 }
             }
         }

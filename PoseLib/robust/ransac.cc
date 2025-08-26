@@ -115,19 +115,19 @@ RansacStats ransac_relpose_w_mono_depth(const std::vector<Point2D> &x1, const st
 //        return stats;
 //    }
 
-    if (opt.use_reproj) {
-        std::vector<Point3D> X(x1.size());
-        if (opt.optimize_shift){
-            double shift = best_model->shift_1;
-            for (size_t i; i < x1.size(); ++i)
-                X[i] = (sigmas[i](0) + shift) * x1[i].homogeneous();
-        } else {
-            for (size_t i; i < x1.size(); ++i)
-                X[i] = (sigmas[i](0)) * x1[i].homogeneous();
-        }
-        get_inliers(*best_model, x2, X, opt.max_reproj_error * opt.max_reproj_error, best_inliers);
-        return stats;
-    }
+    // if (opt.use_reproj) {
+    //     std::vector<Point3D> X(x1.size());
+    //     if (opt.optimize_shift){
+    //         double shift = best_model->shift_1;
+    //         for (size_t i; i < x1.size(); ++i)
+    //             X[i] = (sigmas[i](0) + shift) * x1[i].homogeneous();
+    //     } else {
+    //         for (size_t i; i < x1.size(); ++i)
+    //             X[i] = (sigmas[i](0)) * x1[i].homogeneous();
+    //     }
+    //     get_inliers(*best_model, x2, X, opt.max_reproj_error * opt.max_reproj_error, best_inliers);
+    //     return stats;
+    // }
 
     get_inliers(*best_model, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
     return stats;
@@ -164,24 +164,24 @@ RansacStats ransac_shared_focal_monodepth_relpose(const std::vector<Point2D> &x1
     SharedFocalMonodepthRelativePoseEstimator estimator(opt, x1, x2, sigma);
     RansacStats stats = ransac<SharedFocalMonodepthRelativePoseEstimator>(estimator, opt, best_model);
 
-    if (opt.use_reproj){
-        Eigen::DiagonalMatrix<double, 3> K_inv(1.0 / best_model->camera1.focal(), 1.0 / best_model->camera1.focal(), 1.0);
-        std::vector<Point3D> X(x1.size());
+    // if (opt.use_reproj){
+    //     Eigen::DiagonalMatrix<double, 3> K_inv(1.0 / best_model->camera1.focal(), 1.0 / best_model->camera1.focal(), 1.0);
+    //     std::vector<Point3D> X(x1.size());
 
-        if (opt.optimize_shift) {
-            double shift = best_model->pose.shift_1;
-            for (size_t i = 0; i < X.size(); ++i) {
-                X[i] = (sigma[i](0) + shift) * (K_inv * x1[i].homogeneous().eval());
-            }
-        } else {
-            for (size_t i = 0; i < X.size(); ++i) {
-                X[i] = sigma[i](0) * (K_inv * x1[i].homogeneous().eval());
-            }
-        }
+    //     if (opt.optimize_shift) {
+    //         double shift = best_model->pose.shift_1;
+    //         for (size_t i = 0; i < X.size(); ++i) {
+    //             X[i] = (sigma[i](0) + shift) * (K_inv * x1[i].homogeneous().eval());
+    //         }
+    //     } else {
+    //         for (size_t i = 0; i < X.size(); ++i) {
+    //             X[i] = sigma[i](0) * (K_inv * x1[i].homogeneous().eval());
+    //         }
+    //     }
 
-        get_inliers(best_model->pose, best_model->camera1.focal(), x2, X,
-                    opt.max_reproj_error * opt.max_reproj_error, best_inliers);
-    } else {
+    //     get_inliers(best_model->pose, best_model->camera1.focal(), x2, X,
+    //                 opt.max_reproj_error * opt.max_reproj_error, best_inliers);
+    // } else {
         Eigen::Matrix3d K_inv;
         K_inv << 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, best_model->camera1.focal();
         Eigen::Matrix3d E;
@@ -189,7 +189,7 @@ RansacStats ransac_shared_focal_monodepth_relpose(const std::vector<Point2D> &x1
         Eigen::Matrix3d F = K_inv * (E * K_inv);
 
         get_inliers(F, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
-    }
+    // }
     return stats;
 }
 

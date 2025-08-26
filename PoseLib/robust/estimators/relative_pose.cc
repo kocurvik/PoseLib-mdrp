@@ -159,23 +159,23 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
 }
 
 double SharedFocalMonodepthRelativePoseEstimator::score_model(const ImagePair &image_pair, size_t *inlier_count) const {
-    if (opt.use_reproj) {
-        Eigen::DiagonalMatrix<double, 3> K_inv(1.0 / image_pair.camera1.focal(), 1.0 / image_pair.camera1.focal(), 1.0);
-        std::vector<Point3D> X(x1.size());
+    // if (opt.use_reproj) {
+    //     Eigen::DiagonalMatrix<double, 3> K_inv(1.0 / image_pair.camera1.focal(), 1.0 / image_pair.camera1.focal(), 1.0);
+    //     std::vector<Point3D> X(x1.size());
 
-        if (opt.optimize_shift) {
-            double shift = image_pair.pose.shift_1;
-            for (size_t i = 0; i < X.size(); ++i) {
-                X[i] = (sigma[i](0) + shift) * (K_inv * x1h[i]);
-            }
-        } else {
-            for (size_t i = 0; i < X.size(); ++i) {
-                X[i] = sigma[i](0) * (K_inv * x1h[i]);
-            }
-        }
-        return compute_msac_score(image_pair.pose, image_pair.camera1.focal(), x2, X,
-                                  opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-    }
+    //     if (opt.optimize_shift) {
+    //         double shift = image_pair.pose.shift_1;
+    //         for (size_t i = 0; i < X.size(); ++i) {
+    //             X[i] = (sigma[i](0) + shift) * (K_inv * x1h[i]);
+    //         }
+    //     } else {
+    //         for (size_t i = 0; i < X.size(); ++i) {
+    //             X[i] = sigma[i](0) * (K_inv * x1h[i]);
+    //         }
+    //     }
+    //     return compute_msac_score(image_pair.pose, image_pair.camera1.focal(), x2, X,
+    //                               opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+    // }
     Eigen::DiagonalMatrix<double, 3> K_inv(1.0, 1.0, image_pair.camera1.focal());
     Eigen::Matrix3d E;
     essential_from_motion(image_pair.pose, &E);
@@ -219,6 +219,7 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
         // if (opt.optimize_shift)
         //     refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
         // else {
+        // std::cout << scale_sampson << std::endl;
             refine_shared_hybrid_scale(x1, x2, sigma, image_pair, scale_reproj, scale_sampson,
                                             bundle_opt);
         // }
@@ -569,16 +570,16 @@ double RelativePoseMonoDepthEstimator::score_model(const CameraPose &pose, size_
 //                                         opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
 //    }
 
-    if (opt.use_reproj) {
-        if (opt.optimize_shift) {
-            std::vector<Point3D> X1s(x1.size());
-            double shift = pose.shift_1;
-            for (size_t i = 0; i < x1.size(); ++i)
-                X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
-            return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-        }
-        return compute_msac_score(pose, x2, X1, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
-    }
+    // if (opt.use_reproj) {
+    //     if (opt.optimize_shift) {
+    //         std::vector<Point3D> X1s(x1.size());
+    //         double shift = pose.shift_1;
+    //         for (size_t i = 0; i < x1.size(); ++i)
+    //             X1s[i] = (mono_depth[i](0) + shift) * x1[i].homogeneous();
+    //         return compute_msac_score(pose, x2, X1s, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+    //     }
+    //     return compute_msac_score(pose, x2, X1, opt.max_reproj_error * opt.max_reproj_error, inlier_count);
+    // }
     return compute_sampson_msac_score(pose, x1, x2, opt.max_epipolar_error * opt.max_epipolar_error, inlier_count);
 }
 void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
