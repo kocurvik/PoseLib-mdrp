@@ -132,6 +132,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
     std::vector<Eigen::Vector3d> x1h;
     std::vector<Eigen::Vector2d> monodepth;
     std::vector<size_t> sample;
+    double scale_reproj, scale_sampson;
 };
 
 class VaryingFocalMonodepthRelativePoseEstimator {
