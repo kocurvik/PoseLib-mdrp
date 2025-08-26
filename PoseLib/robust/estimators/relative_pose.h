@@ -109,8 +109,8 @@ class SharedFocalMonodepthRelativePoseEstimator {
         x1h.resize(x1.size());
         for (size_t i = 0; i < x1.size(); ++i)
             x1h[i] = x1[i].homogeneous();
-        scale_reproj = (opt.max_reproj_error > 0.0) ? 1.0 / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
-        scale_sampson = (opt.max_epipolar_error > 0.0) ?  1.0 / (opt.max_epipolar_error * opt.max_epipolar_error): 0.0;
+        scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson * opt.weight_sampson : 0.0;
     }
 
     void generate_models(ImagePairVector *models);
@@ -132,7 +132,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
     std::vector<Eigen::Vector3d> x1h;
     std::vector<Eigen::Vector2d> monodepth;
     std::vector<size_t> sample;
-    double scale_reproj, scale_sampson;
+    double scale_reproj, weight_sampson;
 };
 
 class VaryingFocalMonodepthRelativePoseEstimator {
@@ -260,8 +260,8 @@ class RelativePoseMonoDepthEstimator {
                 X1[i] = sigma[i](0) * x1[i].homogeneous();
         }
 
-        scale_reproj = (opt.max_reproj_error > 0.0) ? 1 / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
-        scale_sampson = (opt.max_epipolar_error > 0.0) ? 1 / (opt.max_epipolar_error * opt.max_epipolar_error): 0.0;
+        scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson * opt.weight_sampson : 0.0;
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
@@ -281,7 +281,7 @@ class RelativePoseMonoDepthEstimator {
     std::vector<double> rel_depth;
     std::vector<size_t> sample;
     std::vector<Eigen::Vector3d> X1;
-    double scale_reproj, scale_sampson;
+    double scale_reproj, weight_sampson;
 };
 
 } // namespace poselib

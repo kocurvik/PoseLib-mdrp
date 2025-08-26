@@ -269,15 +269,16 @@ RansacStats estimate_relative_pose_w_mono_depth(
         BundleOptions scaled_bundle_opt = bundle_opt;
 
         if (ransac_opt.optimize_hybrid){
-            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? 1 / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error) : 0.0;
-            double scale_sampson = (ransac_opt.max_epipolar_error > 0.0) ? 1 / (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error): 0.0;
-            scaled_bundle_opt.loss_scale = 0.25 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error) : 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson * ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.25 * ransac_opt.max_epipolar_error * (1.0 / camera1.focal() + 1.0 / camera2.focal());
 
             if (ransac_opt.optimize_shift){
-                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, scale_sampson,
+                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj,
+                                                weight_sampson,
                                                 scaled_bundle_opt);
             } else {
-                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, scale_sampson,
+                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
                                           scaled_bundle_opt);
             }
             return stats;
@@ -430,14 +431,14 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
 
         if (ransac_opt.optimize_hybrid){
             BundleOptions scaled_bundle_opt = bundle_opt;
-            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? 1.0 / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error): 0.0;
-            double scale_sampson = (ransac_opt.max_epipolar_error > 0.0) ? 1.0 / (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) : 0.0;
-            scaled_bundle_opt.loss_scale = 0.5 / scale;
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error): 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson * ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.5 / scale * ransac_opt.max_epipolar_error;
             // if (ransac_opt.optimize_shift){
-            //     refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, scale_sampson,
+            //     refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
             //                                     scaled_bundle_opt);
             // } else {
-                refine_shared_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, scale_sampson,
+                refine_shared_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, weight_sampson,
                                           scaled_bundle_opt);
             // }
             image_pair->camera1.params[0] *= scale;

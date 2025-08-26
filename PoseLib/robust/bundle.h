@@ -118,19 +118,19 @@ BundleStats refine_calib_symrepro_scale(const std::vector<Point2D> &x1, const st
 
 BundleStats refine_calib_hybrid_scale_shift(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                             const std::vector<Point2D> &sigma, CameraPose *pose,
-                                            const double scale_reproj, const double scale_sampson,
+                                            const double scale_reproj, const double weight_sampson,
                                             const BundleOptions &opt,
                                             const std::vector<double> &weights = std::vector<double>());
 
 BundleStats refine_calib_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                       const std::vector<Point2D> &sigma, CameraPose *pose,
-                                      const double scale_reproj, const double scale_sampson,
+                                      const double scale_reproj, const double weight_sampson,
                                       const BundleOptions &opt,
                                       const std::vector<double> &weights = std::vector<double>());
 
 BundleStats refine_shared_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                       const std::vector<Point2D> &sigma, ImagePair *image_pair,
-                                      const double scale_reproj, const double scale_sampson,
+                                      const double scale_reproj, const double weight_sampson,
                                       const BundleOptions &opt,
                                       const std::vector<double> &weights = std::vector<double>());   
                                                                             

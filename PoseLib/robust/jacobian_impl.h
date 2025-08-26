@@ -192,10 +192,10 @@ class HybridPoseScaleShiftJacobianAccumulator {
                                             const std::vector<Point2D> &sigma,
                                             const LossFunction &l,
                                             const double scale_reproj,
-                                            const double scale_sampson,
+                                            const double weight_sampson,
                                             const ResidualWeightVector &w = ResidualWeightVector())
         : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), scale_reproj(scale_reproj),
-          scale_sampson(scale_sampson), weights(w)
+          weight_sampson(weight_sampson), weights(w)
     {}
 
     double residual(const CameraPose &pose) const {
@@ -209,13 +209,13 @@ class HybridPoseScaleShiftJacobianAccumulator {
 
         double cost = 0;
         for (size_t i = 0; i < x1.size(); ++i) {
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
                 double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
                 double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                                 (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-                double r2 = scale_sampson * (C * C) / nJc_sq;
+                double r2 = (C * C) / nJc_sq;
 
-                cost += weights[i] * loss_fn.loss(r2);
+                cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
             }
 
             if (scale_reproj > 0.0) {
@@ -259,9 +259,9 @@ class HybridPoseScaleShiftJacobianAccumulator {
             double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
             double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                             (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-            double r2 = scale_sampson * (C * C) / nJc_sq;
+            double r2 = (C * C) / nJc_sq;
 
-            cost += weights[i] * loss_fn.loss(r2);
+            cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
 
             const Eigen::Vector3d Z1 = R * (sigma[i](0) + shift_1) * x1[i].homogeneous().eval() + t;
             const Eigen::Vector3d Z2 =
@@ -335,9 +335,9 @@ class HybridPoseScaleShiftJacobianAccumulator {
             double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
             double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                             (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-            double r2 = scale_sampson * (C * C) / nJc_sq;
+            double r2 = (C * C) / nJc_sq;
 
-            cost += weights[i] * loss_fn.loss(r2);
+            cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
         return cost;
     }
 
@@ -545,7 +545,7 @@ class HybridPoseScaleShiftJacobianAccumulator {
             const double r = C * inv_nJ_C;
 
             // Compute weight from robust loss function (used in the IRLS)
-            const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
+            const double weight = weights[i] * loss_fn.weight(r * r) * weight_sampson;
             if (weight > 0) {
                 num_residuals++;
 
@@ -582,10 +582,10 @@ class HybridPoseScaleShiftJacobianAccumulator {
 
                 for (int k = 0; k < 9; ++k) {
                     for (int j = 0; j <= k; ++j) {
-                        JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
+                        JtJ(k, j) += weight_sampson * weight * (J_sam(k) * J_sam(j));
                     }
                 }
-                Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
+                Jtr += weight_sampson * weight * C * inv_nJ_C * J_sam.transpose();
 //                Jtr_check += weight * C * inv_nJ_C * J_sam.transpose();
             }
 
@@ -625,7 +625,7 @@ class HybridPoseScaleShiftJacobianAccumulator {
     const std::vector<Point2D> &x2;
     const std::vector<Point2D> &sigma;
     const LossFunction &loss_fn;
-    const double scale_reproj, scale_sampson;
+    const double scale_reproj, weight_sampson;
     const ResidualWeightVector &weights;
 };
 
@@ -639,10 +639,10 @@ class HybridPoseScaleJacobianAccumulator {
                                        const std::vector<Point2D> &sigma,
                                        const LossFunction &l,
                                        const double scale_reproj,
-                                       const double scale_sampson,
+                                       const double weight_sampson,
                                        const ResidualWeightVector &w = ResidualWeightVector())
         : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), scale_reproj(scale_reproj),
-          scale_sampson(scale_sampson), weights(w)
+          weight_sampson(weight_sampson), weights(w)
     {}
 
     double residual(const CameraPose &pose) const {
@@ -656,13 +656,13 @@ class HybridPoseScaleJacobianAccumulator {
 
         double cost = 0;
         for (size_t i = 0; i < x1.size(); ++i) {
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
                 double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
                 double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                                 (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-                double r2 = scale_sampson * (C * C) / nJc_sq;
+                double r2 = (C * C) / nJc_sq;
 
-                cost += weights[i] * loss_fn.loss(r2);
+                cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
             }
 
             if (scale_reproj > 0.0) {
@@ -701,15 +701,15 @@ class HybridPoseScaleJacobianAccumulator {
 
         double cost = 0;
 
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
                 Eigen::Matrix3d E;
                 essential_from_motion(pose, &E);
                 double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
                 double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                                 (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-                double r2 = scale_sampson * (C * C) / nJc_sq;
+                double r2 = (C * C) / nJc_sq;
 
-                cost += weights[i] * loss_fn.loss(r2);
+                cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
             }
 
             if (scale_reproj > 0.0) {
@@ -787,9 +787,9 @@ class HybridPoseScaleJacobianAccumulator {
             double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
             double nJc_sq = (E.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                             (E.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
-            double r2 = scale_sampson * (C * C) / nJc_sq;
+            double r2 = (C * C) / nJc_sq;
 
-            cost += weights[i] * loss_fn.loss(r2);
+            cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
         return cost;
     }
 
@@ -976,7 +976,7 @@ class HybridPoseScaleJacobianAccumulator {
                 }
             }
 
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
                 double C = x2[i].homogeneous().dot(E * x1[i].homogeneous());
 
                 // J_C is the Jacobian of the epipolar constraint w.r.t. the image points
@@ -987,7 +987,7 @@ class HybridPoseScaleJacobianAccumulator {
                 const double r = C * inv_nJ_C;
 
                 // Compute weight from robust loss function (used in the IRLS)
-                const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
+                const double weight = weights[i] * loss_fn.weight(r * r) * weight_sampson;
                 if (weight > 0) {
                     num_residuals++;
 
@@ -1019,15 +1019,15 @@ class HybridPoseScaleJacobianAccumulator {
                     //     CameraPose bcw = step(-dp, pose);
                     //     num_J(0, j) = (residual_s(fwd, i) - residual_s(bcw, i)) / (2 * eps);
                     // }
-                    // std::cout << "RS - Sym J: " << 2 * scale_sampson * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
+                    // std::cout << "RS - Sym J: " << 2 * weight_sampson * (J_sam * (weight * C * inv_nJ_C)) << std::endl;
                     // std::cout << "RS - Num J: " << num_J << std::endl;
 
                     for (int k = 0; k < 7; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
+                            JtJ(k, j) += weight_sampson * weight * (J_sam(k) * J_sam(j));
                         }
                     }
-                    Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
+                    Jtr += weight_sampson * weight * C * inv_nJ_C * J_sam.transpose();
                 }
             }
         }
@@ -1050,7 +1050,7 @@ class HybridPoseScaleJacobianAccumulator {
     const std::vector<Point2D> &x2;
     const std::vector<Point2D> &sigma;
     const LossFunction &loss_fn;
-    const double scale_reproj, scale_sampson;
+    const double scale_reproj, weight_sampson;
     const ResidualWeightVector &weights;
 };
 
@@ -1295,10 +1295,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
     HybridSharedFocalScaleJacobianAccumulator(const std::vector<Point2D> &points2D_1,
                                               const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma,
                                               const LossFunction &l, const double scale_reproj,
-                                              const double scale_sampson,
+                                              const double weight_sampson,
                                               const ResidualWeightVector &w = ResidualWeightVector())
         : x1(points2D_1), x2(points2D_2), sigma(sigma), loss_fn(l), scale_reproj(scale_reproj),
-          scale_sampson(scale_sampson), weights(w) {}
+          weight_sampson(weight_sampson), weights(w) {}
 
     double residual(const ImagePair &image_pair) const {
         const double focal = image_pair.camera1.focal();
@@ -1315,14 +1315,14 @@ class HybridSharedFocalScaleJacobianAccumulator {
         double cost = 0;
         for (size_t i = 0; i < x1.size(); ++i) {
 
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
 
                 double C = x2[i].homogeneous().dot(F * x1[i].homogeneous());
                 double nJc_sq = (F.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                                 (F.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
 
-                double r2 = scale_sampson * (C * C) / nJc_sq;
-                cost += weights[i] * loss_fn.loss(r2);
+                double r2 = (C * C) / nJc_sq;
+                cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
             }
             if (scale_reproj > 0.0) {
 
@@ -1407,10 +1407,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
         double nJc_sq = (F.block<2, 3>(0, 0) * x1[i].homogeneous()).squaredNorm() +
                         (F.block<3, 2>(0, 0).transpose() * x2[i].homogeneous()).squaredNorm();
 
-        double r2 = scale_sampson * (C * C) / nJc_sq;
-        // std::cout << scale_sampson << std::endl;
+        double r2 = (C * C) / nJc_sq;
+        // std::cout << weight_sampson << std::endl;
 
-        cost += weights[i] * loss_fn.loss(r2);
+        cost += weights[i] * loss_fn.loss(r2) * weight_sampson;
         return cost;
     }
 
@@ -1630,7 +1630,7 @@ class HybridSharedFocalScaleJacobianAccumulator {
                 }
             }
 
-            if (scale_sampson > 0.0) {
+            if (weight_sampson > 0.0) {
                 double C = x2[i].homogeneous().dot(F * x1[i].homogeneous());
 
                 // J_C is the Jacobian of the epipolar constraint w.r.t. the image points
@@ -1641,8 +1641,8 @@ class HybridSharedFocalScaleJacobianAccumulator {
                 const double r = C * inv_nJ_C;
 
                 // Compute weight from robust loss function (used in the IRLS)
-                // std::cout << scale_sampson << std::endl;
-                const double weight = weights[i] * loss_fn.weight(scale_sampson * r * r);
+                // std::cout << weight_sampson << std::endl;
+                const double weight = weights[i] * loss_fn.weight(weight_sampson * r * r) * weight_sampson;
                 if (weight > 0) {
                     num_residuals++;
 
@@ -1680,10 +1680,10 @@ class HybridSharedFocalScaleJacobianAccumulator {
 
                     for (int k = 0; k < 8; ++k) {
                         for (int j = 0; j <= k; ++j) {
-                            JtJ(k, j) += scale_sampson * weight * (J_sam(k) * J_sam(j));
+                            JtJ(k, j) += weight_sampson * weight * (J_sam(k) * J_sam(j));
                         }
                     }
-                    Jtr += scale_sampson * weight * C * inv_nJ_C * J_sam.transpose();
+                    Jtr += weight_sampson * weight * C * inv_nJ_C * J_sam.transpose();
                 }
             }
         }
@@ -1711,7 +1711,7 @@ class HybridSharedFocalScaleJacobianAccumulator {
     const std::vector<Point2D> &x2;
     const std::vector<Point2D> &sigma;
     const LossFunction &loss_fn;
-    const double scale_reproj, scale_sampson;
+    const double scale_reproj, weight_sampson;
     const ResidualWeightVector &weights;
 };
 

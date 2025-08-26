@@ -215,11 +215,11 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
 
     if (opt.optimize_hybrid) {
         // bundle_opt.loss_scale = opt.max_reproj_error;
-        bundle_opt.loss_scale = 1.0;
+        bundle_opt.loss_scale = opt.max_epipolar_error;
         // if (opt.optimize_shift)
-        //     refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+        //     refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
         // else {
-            refine_shared_hybrid_scale(x1, x2, sigma, image_pair, scale_reproj, scale_sampson,
+            refine_shared_hybrid_scale(x1, x2, sigma, image_pair, scale_reproj, weight_sampson,
                                             bundle_opt);
         // }
         return;
@@ -594,11 +594,11 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
 
             if (opt.optimize_hybrid) {
                 // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
-                bundle_opt.loss_scale = 1.0 * 8.0 * factor;
+                bundle_opt.loss_scale = opt.max_epipolar_error * 8.0 * factor;
                 if (opt.optimize_shift)
-                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
                 else
-                    refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+                    refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
                 continue;
             }
 
@@ -630,12 +630,12 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     bundle_opt.max_iterations = opt.lo_iterations;
 
     if (opt.optimize_hybrid) {
-        // we set loss scale to 1.0 since rest is take care or by sacle reproj and scale_sampson
-        bundle_opt.loss_scale = 1.0;
+        // we set loss scale to 1.0 since rest is take care or by sacle reproj and weight_sampson
+        bundle_opt.loss_scale = opt.max_epipolar_error;
         if (opt.optimize_shift)
-            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
         else {
-            refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, scale_sampson, bundle_opt);
+            refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
         }
         return;
     }
