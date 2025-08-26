@@ -1481,21 +1481,6 @@ class HybridSharedFocalScaleJacobianAccumulator {
         dt.row(7) *= focal;
         dt.row(8) *= focal * focal;
 
-
-        // for (int m = 0; m < 3; ++m) {
-        //     // 将向量转换为矩阵
-        //     Eigen::Map<Eigen::Matrix3d> dE_dRi_vec(dR.col(m).data());
-        //     Eigen::Map<Eigen::Matrix3d> dE_dti_vec(dt.col(m).data());
-            
-        //     // 应用链式法则：dF/d* = Kinv * (dE/d*) * Kinv
-        //     Eigen::Matrix3d dF_dRi_mat = K_inv2 * dE_dRi_vec * K_inv2;
-        //     Eigen::Matrix3d dF_dti_mat = K_inv2 * dE_dti_vec * K_inv2;
-            
-        //     // 将矩阵转换回向量
-        //     dR.col(m) = Eigen::Map<Eigen::VectorXd>(dF_dRi_mat.data(), 9);
-        //     dt.col(m) = Eigen::Map<Eigen::VectorXd>(dF_dti_mat.data(), 9);
-        // }
-
         Eigen::Matrix<double, 9, 1> df;
 
         df << 0.0, 0.0, E(2, 0), 0.0, 0.0, E(2, 1), E(0, 2), E(1, 2), 2 * E(2, 2) * focal;
