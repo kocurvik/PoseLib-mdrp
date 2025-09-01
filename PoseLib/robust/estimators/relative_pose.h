@@ -110,7 +110,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
         for (size_t i = 0; i < x1.size(); ++i)
             x1h[i] = x1[i].homogeneous();
         scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
-        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson * opt.weight_sampson : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson : 0.0;
     }
 
     void generate_models(ImagePairVector *models);
@@ -261,7 +261,7 @@ class RelativePoseMonoDepthEstimator {
         }
 
         scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
-        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson * opt.weight_sampson : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson : 0.0;
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
