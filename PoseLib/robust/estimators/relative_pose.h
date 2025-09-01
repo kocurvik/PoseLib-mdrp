@@ -98,7 +98,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
   public:
     SharedFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                               const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_madpose ? 4 :((ransac_opt.use_ours and ransac_opt.solver_scale and ransac_opt.solver_shift) ? 4 : 3)),
+        : sample_sz(ransac_opt.use_madpose ? 4 :((ransac_opt.use_ours && ransac_opt.solver_scale && ransac_opt.solver_shift) ? 4 : 3)),
           num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1),
           x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
@@ -139,7 +139,7 @@ class VaryingFocalMonodepthRelativePoseEstimator {
   public:
     VaryingFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                                const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_madpose ? 4 :(ransac_opt.use_ours and (!ransac_opt.solver_scale and !ransac_opt.solver_shift) ? 3 : 4))),
+        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_madpose ? 4 :(ransac_opt.use_ours && (!ransac_opt.solver_scale && !ransac_opt.solver_shift) ? 3 : 4))),
           num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1), x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);

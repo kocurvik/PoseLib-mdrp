@@ -134,17 +134,17 @@ void SharedFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector 
     }
 
     if (opt.use_ours) {
-        if (opt.solver_scale and opt.solver_shift) {
+        if (opt.solver_scale && opt.solver_shift) {
             shared_focal_monodepth_4p(x1s, x2s, monodepth, opt.use_eigen, models);
             return;
         }
 
-        if (opt.solver_scale and !opt.solver_shift) {
+        if (opt.solver_scale && !opt.solver_shift) {
             shared_focal_s00f_relpose(x1s, x2s, monodepth, models);
             return;
         }
 
-        if (!opt.solver_scale and !opt.solver_shift) {
+        if (!opt.solver_scale && !opt.solver_shift) {
             shared_focal_monodepth_3p(x1s, x2s, monodepth, models, opt);
             return;
         }
@@ -247,8 +247,8 @@ void VaryingFocalMonodepthRelativePoseEstimator::filter_focals(ImagePairVector *
     new_models.reserve(models->size());
 
     for (const ImagePair &model : *models) {
-        if (model.camera1.focal() >= opt.min_focal_1 and model.camera1.focal() <= opt.max_focal_1 and
-            model.camera2.focal() >= opt.min_focal_2 and model.camera2.focal() <= opt.max_focal_2)
+        if (model.camera1.focal() >= opt.min_focal_1 && model.camera1.focal() <= opt.max_focal_1 &&
+            model.camera2.focal() >= opt.min_focal_2 && model.camera2.focal() <= opt.max_focal_2)
             new_models.push_back(model);
     }
     *models = new_models;
@@ -275,19 +275,19 @@ void VaryingFocalMonodepthRelativePoseEstimator::generate_models(ImagePairVector
     }
 
     if (opt.use_ours) {
-        if (!opt.solver_scale and !opt.solver_shift) {
+        if (!opt.solver_scale && !opt.solver_shift) {
             varying_focal_monodepth_abspose_ours(x1s, x2s, monodepth, models, opt);
             filter_focals(models);
             return;
         }
 
-        if (opt.solver_scale and !opt.solver_shift) {
+        if (opt.solver_scale && !opt.solver_shift) {
             varying_focal_monodepth_s00_ours(x1s, x2s, monodepth, models);
             filter_focals(models);
             return;
         }
 
-        if (opt.solver_scale and opt.solver_shift) {
+        if (opt.solver_scale && opt.solver_shift) {
             varying_focal_monodepth_relpose_ours(x1s, x2s, monodepth, opt.use_eigen, models);
             filter_focals(models);
             return;
@@ -542,7 +542,7 @@ void RelativePoseMonoDepthEstimator::generate_models(std::vector<CameraPose> *mo
         return;
     }
 
-    if (opt.use_ours and opt.solver_shift and opt.solver_scale) {
+    if (opt.use_ours && opt.solver_shift && opt.solver_scale) {
         for (size_t k = 0; k < sample_sz; ++k) {
             x1s[k] = x1[sample[k]];
             x2s[k] = x2[sample[k]];
