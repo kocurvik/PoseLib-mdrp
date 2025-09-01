@@ -596,9 +596,9 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
                 // we rescale using scale reproj and scale sampson so set the main loss scale to 1.0
                 bundle_opt.loss_scale = opt.max_epipolar_error * 8.0 * factor;
                 if (opt.optimize_shift)
-                    refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
+                    refine_calib_hybrid_scale_shift(x1, x2, mono_depth, pose, scale_reproj, weight_sampson, bundle_opt);
                 else
-                    refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
+                    refine_calib_hybrid_scale(x1, x2, mono_depth, pose, scale_reproj, weight_sampson, bundle_opt);
                 continue;
             }
 
@@ -607,12 +607,12 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
                 bundle_opt.loss_scale = tol;
 
                 if (opt.optimize_symmetric) {
-                    refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+                    refine_calib_symrepro_scale(x1, x2, mono_depth, pose, bundle_opt);
                     continue;
                 }
 
                 if (opt.optimize_shift) {
-                    refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
+                    refine_calib_abspose_shift(x1, x2, mono_depth, pose, bundle_opt);
                     continue;
                 }
 
@@ -633,9 +633,9 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
         // we set loss scale to 1.0 since rest is take care or by sacle reproj and weight_sampson
         bundle_opt.loss_scale = opt.max_epipolar_error;
         if (opt.optimize_shift)
-            refine_calib_hybrid_scale_shift(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
+            refine_calib_hybrid_scale_shift(x1, x2, mono_depth, pose, scale_reproj, weight_sampson, bundle_opt);
         else {
-            refine_calib_hybrid_scale(x1, x2, sigmas, pose, scale_reproj, weight_sampson, bundle_opt);
+            refine_calib_hybrid_scale(x1, x2, mono_depth, pose, scale_reproj, weight_sampson, bundle_opt);
         }
         return;
     }
@@ -643,11 +643,11 @@ void RelativePoseMonoDepthEstimator::refine_model(CameraPose *pose) const {
     if (opt.use_reproj) {
         bundle_opt.loss_scale = opt.max_reproj_error;
         if (opt.optimize_symmetric) {
-            refine_calib_symrepro_scale(x1, x2, sigmas, pose, bundle_opt);
+            refine_calib_symrepro_scale(x1, x2, mono_depth, pose, bundle_opt);
             return;
         }
         if (opt.optimize_shift) {
-            refine_calib_abspose_shift(x1, x2, sigmas, pose, bundle_opt);
+            refine_calib_abspose_shift(x1, x2, mono_depth, pose, bundle_opt);
             return;
         }
         bundle_adjust(x2, X1, pose, bundle_opt);
