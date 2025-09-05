@@ -389,6 +389,48 @@ BundleStats refine_shared_hybrid_scale(const std::vector<Point2D> &x1, const std
                                                               opt, UniformWeightVector());
     }
 }
+//-------------------------------------
+
+// hybrid varying
+template <typename WeightType, typename LossFunction>
+BundleStats refine_varying_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                      const std::vector<Point2D> &sigma, ImagePair *image_pair,
+                                      const double scale_reproj, const double weight_sampson,
+                                      const BundleOptions &opt, const WeightType &weights) {
+    LossFunction loss_fn(opt.loss_scale);
+    IterationCallback callback = setup_callback(opt, loss_fn);
+    HybridVaryingFocalScaleJacobianAccumulator<LossFunction, WeightType> accum(x1, x2, sigma, loss_fn, scale_reproj,
+                                                                               weight_sampson, weights);
+    return lm_impl<decltype(accum)>(accum, image_pair, opt, callback);
+}
+
+template <typename WeightType>
+BundleStats refine_varying_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                      const std::vector<Point2D> &sigma, ImagePair *image_pair,
+                                      const double scale_reproj, const double weight_sampson,
+                                      const BundleOptions &opt, const WeightType &weights) {
+    switch (opt.loss_type) {
+#define SWITCH_LOSS_FUNCTION_CASE(LossFunction)                                                                        \
+    return refine_varying_hybrid_scale<WeightType, LossFunction>(x1, x2, sigma, image_pair, scale_reproj, weight_sampson, opt, weights);
+        SWITCH_LOSS_FUNCTIONS
+    default:
+        return BundleStats();
+    }
+#undef SWITCH_LOSS_FUNCTION_CASE
+}
+
+BundleStats refine_varying_hybrid_scale(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                                            const std::vector<Point2D> &sigma, ImagePair *image_pair,
+                                            const double scale_reproj, const double weight_sampson,
+                                            const BundleOptions &opt, const std::vector<double> &weights) {
+    if (weights.size() == x1.size()) {
+        return refine_varying_hybrid_scale<std::vector<double>>(x1, x2, sigma, image_pair, scale_reproj, weight_sampson,
+                                                              opt, weights);
+    } else {
+        return refine_varying_hybrid_scale<UniformWeightVector>(x1, x2, sigma, image_pair, scale_reproj, weight_sampson,
+                                                              opt, UniformWeightVector());
+    }
+}
 
 //-------------------------------------
 

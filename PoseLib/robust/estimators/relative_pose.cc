@@ -197,7 +197,10 @@ void SharedFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_pa
             if (opt.use_reproj) {
                 double tol = opt.max_reproj_error * 8.0 * factor;
                 bundle_opt.loss_scale = tol;
-                if (opt.optimize_shift)
+                if (opt.optimize_hybrid)
+                    refine_shared_hybrid_scale(x1, x2, sigma, image_pair, scale_reproj, weight_sampson,
+                                               bundle_opt);
+                else if (opt.optimize_shift)
                     refine_shared_focal_abspose_shift(x1, x2, sigma, image_pair, bundle_opt);
                 else if (opt.optimize_symmetric)
                     refine_shared_focal_symrepro_scale(x1, x2, sigma, image_pair, bundle_opt);
@@ -364,6 +367,12 @@ void VaryingFocalMonodepthRelativePoseEstimator::refine_model(ImagePair *image_p
     }
 
     bundle_opt.max_iterations = opt.lo_iterations;
+
+    if (opt.optimize_hybrid) {
+        refine_varying_hybrid_scale(x1, x2, sigma, image_pair, scale_reproj, weight_sampson, bundle_opt);
+        return;
+    }
+
     if (opt.use_reproj) {
         bundle_opt.loss_scale = opt.max_reproj_error;
         if (opt.optimize_shift)

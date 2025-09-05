@@ -530,6 +530,28 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
             sigma_inliers.push_back(sigma[k]);
         }
 
+        if (ransac_opt.optimize_hybrid){
+            BundleOptions scaled_bundle_opt = bundle_opt;
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error): 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.5 / scale * ransac_opt.max_epipolar_error;
+            // if (ransac_opt.optimize_shift){
+            //     refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
+            //                                     scaled_bundle_opt);
+            // } else {
+            refine_varying_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, weight_sampson,
+                                       scaled_bundle_opt);
+            // }
+            image_pair->camera1.params[0] *= scale;
+            image_pair->camera1.params[1] = 0; // pp(0);
+            image_pair->camera1.params[2] = 0; // pp(1);
+            image_pair->camera2.params[0] *= scale;
+            image_pair->camera2.params[1] = 0; // pp(0);
+            image_pair->camera2.params[2] = 0; // pp(1);
+
+            return stats;
+        }
+
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift)
                 refine_varying_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
