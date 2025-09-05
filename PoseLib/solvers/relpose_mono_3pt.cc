@@ -277,6 +277,7 @@ int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &xa, const std
         Eigen::Vector3d t = centroid_Y - R * centroid_X;
 
         CameraPose pose = CameraPose(R, t);
+        pose.scale = sol(2);
         if (keep_shift) {
             pose.shift_1 = sol(1);
             pose.shift_2 = sol(3);
