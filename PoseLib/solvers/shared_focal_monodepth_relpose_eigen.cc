@@ -443,6 +443,7 @@ void shared_focal_monodepth_4p(const std::vector<Eigen::Vector2d> &x1, const std
         Eigen::Vector3d trans = trans2 - trans1;
 
         CameraPose pose = CameraPose(rot, trans);
+        pose.scale = s;
         pose.shift_1 = u;
         pose.shift_2 = v;
         Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
@@ -666,6 +667,7 @@ void shared_focal_monodepth_madpose(const std::vector<Eigen::Vector2d> &xa, cons
         std::swap(b1, b2);
 
         CameraPose pose = CameraPose(R, t);
+        pose.scale = sol(2);
         pose.shift_1 = b1;
         pose.shift_2 = b2;
         Camera camera1 = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
