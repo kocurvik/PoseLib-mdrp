@@ -109,10 +109,16 @@ RansacStats ransac_relpose_w_mono_depth(const std::vector<Point2D> &x1, const st
     best_model->t.setZero();
     RelativePoseMonoDepthEstimator estimator(opt, x1, x2, sigmas);
     RansacStats stats = ransac<RelativePoseMonoDepthEstimator>(estimator, opt, best_model);
+//    if (opt.optimize_hybrid) {
+//        get_inliers(*best_model, x1, x2, sigmas, opt.max_reproj_error * opt.max_reproj_error,
+//                    opt.max_epipolar_error * opt.max_epipolar_error, best_inliers);
+//        return stats;
+//    }
+
     if (opt.use_reproj) {
         std::vector<Point3D> X(x1.size());
         if (opt.optimize_shift){
-            double shift = best_model->shift;
+            double shift = best_model->shift_1;
             for (size_t i; i < x1.size(); ++i)
                 X[i] = (sigmas[i](0) + shift) * x1[i].homogeneous();
         } else {
@@ -163,7 +169,7 @@ RansacStats ransac_shared_focal_monodepth_relpose(const std::vector<Point2D> &x1
         std::vector<Point3D> X(x1.size());
 
         if (opt.optimize_shift) {
-            double shift = best_model->pose.shift;
+            double shift = best_model->pose.shift_1;
             for (size_t i = 0; i < X.size(); ++i) {
                 X[i] = (sigma[i](0) + shift) * (K_inv * x1[i].homogeneous().eval());
             }
@@ -202,7 +208,7 @@ RansacStats ransac_varying_focal_monodepth_relpose(const std::vector<Point2D> &x
                                                1.0);
         std::vector<Point3D> X(x1.size());
         if (opt.optimize_shift) {
-            double shift = best_model->pose.shift;
+            double shift = best_model->pose.shift_1;
             for (size_t i = 0; i < X.size(); ++i) {
                 X[i] = (sigma[i](0) + shift) * (K_inv * x1[i].homogeneous().eval());
             }

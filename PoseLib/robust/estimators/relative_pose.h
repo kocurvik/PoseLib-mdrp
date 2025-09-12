@@ -98,7 +98,7 @@ class SharedFocalMonodepthRelativePoseEstimator {
   public:
     SharedFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                               const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_madpose ? 4 :((ransac_opt.use_ours and ransac_opt.solver_scale and ransac_opt.solver_shift) ? 4 : 3)),
+        : sample_sz(ransac_opt.use_madpose ? 4 :((ransac_opt.use_ours && ransac_opt.solver_scale && ransac_opt.solver_shift) ? 4 : 3)),
           num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1),
           x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
@@ -109,6 +109,8 @@ class SharedFocalMonodepthRelativePoseEstimator {
         x1h.resize(x1.size());
         for (size_t i = 0; i < x1.size(); ++i)
             x1h[i] = x1[i].homogeneous();
+        scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson : 0.0;
     }
 
     void generate_models(ImagePairVector *models);
@@ -130,13 +132,14 @@ class SharedFocalMonodepthRelativePoseEstimator {
     std::vector<Eigen::Vector3d> x1h;
     std::vector<Eigen::Vector2d> monodepth;
     std::vector<size_t> sample;
+    double scale_reproj, weight_sampson;
 };
 
 class VaryingFocalMonodepthRelativePoseEstimator {
   public:
     VaryingFocalMonodepthRelativePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D_1,
                                                const std::vector<Point2D> &points2D_2, const std::vector<Point2D> &sigma)
-        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_madpose ? 4 :(ransac_opt.use_ours and (!ransac_opt.solver_scale and !ransac_opt.solver_shift) ? 3 : 4))),
+        : sample_sz(ransac_opt.use_fundamental ? 7 : (ransac_opt.use_madpose ? 4 :(ransac_opt.use_ours && !ransac_opt.solver_shift ? 3 : 4))),
           num_data(points2D_1.size()), opt(ransac_opt), x1(points2D_1), x2(points2D_2), sigma(sigma),
           sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         x1s.resize(sample_sz);
@@ -146,6 +149,9 @@ class VaryingFocalMonodepthRelativePoseEstimator {
         x1h.resize(x1.size());
         for (size_t i = 0; i < x1.size(); ++i)
             x1h[i] = x1[i].homogeneous();
+
+        scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson : 0.0;
     }
 
     void filter_focals(ImagePairVector *models);
@@ -168,6 +174,8 @@ class VaryingFocalMonodepthRelativePoseEstimator {
     std::vector<Eigen::Vector3d> x1h;
     std::vector<Eigen::Vector2d> monodepth;
     std::vector<size_t> sample;
+    double scale_reproj;
+    double weight_sampson;
 };
 
 class GeneralizedRelativePoseEstimator {
@@ -256,6 +264,9 @@ class RelativePoseMonoDepthEstimator {
             for (size_t i = 0; i < num_data; ++i)
                 X1[i] = sigma[i](0) * x1[i].homogeneous();
         }
+
+        scale_reproj = (opt.max_reproj_error > 0.0) ? (opt.max_epipolar_error * opt.max_epipolar_error) / (opt.max_reproj_error * opt.max_reproj_error) : 0.0;
+        weight_sampson = (opt.weight_sampson > 0.0) ? opt.weight_sampson : 0.0;
     }
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
@@ -275,6 +286,7 @@ class RelativePoseMonoDepthEstimator {
     std::vector<double> rel_depth;
     std::vector<size_t> sample;
     std::vector<Eigen::Vector3d> X1;
+    double scale_reproj, weight_sampson;
 };
 
 } // namespace poselib

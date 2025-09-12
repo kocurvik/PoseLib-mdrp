@@ -77,7 +77,8 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> solver_p3p_mono_3d(const Eigen::Vect
 }
 
 int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                                  const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose) {
+                                  const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose,
+                                  bool keep_shift) {
     std::vector<Eigen::Vector3d> x1h(3);
     std::vector<Eigen::Vector3d> x2h(3);
     for (int i = 0; i < 3; ++i) {
@@ -128,7 +129,11 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
         Eigen::Vector3d t = s * (depth2[0] + v) * x2h[0] - (depth1[0] + u) * rot * x1h[0];
 
         CameraPose pose = CameraPose(rot, t);
-        pose.shift = u;
+        if (keep_shift) {
+            pose.shift_1 = u;
+            pose.shift_2 = v;
+        } // otherwise shift is initialized to 0
+        pose.scale = s;
         rel_pose->emplace_back(pose);
         num_sols++;
     }
@@ -137,7 +142,8 @@ int essential_3pt_mono_depth_impl(const std::vector<Eigen::Vector2d> &x1, const 
 }
 
 int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &xa, const std::vector<Eigen::Vector2d> &xb,
-                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose) {
+                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose,
+                               bool keep_shift) {
     rel_pose->clear();
     rel_pose->reserve(4);
     Eigen::Matrix<double, 3, 3> x1;
@@ -271,7 +277,11 @@ int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &xa, const std
         Eigen::Vector3d t = centroid_Y - R * centroid_X;
 
         CameraPose pose = CameraPose(R, t);
-        pose.shift = sol(1);
+        pose.scale = sol(2);
+        if (keep_shift) {
+            pose.shift_1 = sol(1);
+            pose.shift_2 = sol(3);
+        } // otherwise the shifts are initialized to 0
         rel_pose->emplace_back(pose);
     }
 
@@ -279,10 +289,11 @@ int essential_3pt_mono_madpose(const std::vector<Eigen::Vector2d> &xa, const std
 }
 
 int essential_3pt_mono_depth(const std::vector<Eigen::Vector2d> &x1, const std::vector<Eigen::Vector2d> &x2,
-                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose) {
+                             const std::vector<Eigen::Vector2d> &sigma, std::vector<CameraPose> *rel_pose,
+                             bool keep_shift) {
     rel_pose->clear();
     rel_pose->reserve(4);
-    essential_3pt_mono_depth_impl(x1, x2, sigma, rel_pose);
+    essential_3pt_mono_depth_impl(x1, x2, sigma, rel_pose, keep_shift);
 
     return rel_pose->size();
 }

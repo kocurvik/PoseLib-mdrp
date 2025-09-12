@@ -202,6 +202,101 @@ double compute_sampson_msac_score(const Eigen::Matrix3d &E, const std::vector<Po
     return score;
 }
 
+double compute_hybrid_msac_score(const CameraPose &pose, const std::vector<Point2D> &x1,
+                                 const std::vector<Point2D> &x2, std::vector<Point2D> sigma, double sq_reproj_t,
+                                 double sq_epipolar_t, size_t *inlier_count) {
+    *inlier_count = 0;
+    Eigen::Matrix3d E;
+    essential_from_motion(pose, &E);
+
+    Eigen::Matrix3d R = pose.R();
+    Eigen::Matrix3d Rt = R.transpose();
+    Eigen::Vector3d t = pose.t;
+    double scale = pose.scale;
+    double shift_1 = pose.shift_1;
+    double shift_2 = pose.shift_2;
+
+    // For some reason this is a lot faster than just using nice Eigen expressions...
+    const double E0_0 = E(0, 0), E0_1 = E(0, 1), E0_2 = E(0, 2);
+    const double E1_0 = E(1, 0), E1_1 = E(1, 1), E1_2 = E(1, 2);
+    const double E2_0 = E(2, 0), E2_1 = E(2, 1), E2_2 = E(2, 2);
+
+    double score = 0.0;
+    for (size_t k = 0; k < x1.size(); ++k) {
+        const double x1_0 = x1[k](0), x1_1 = x1[k](1);
+        const double x2_0 = x2[k](0), x2_1 = x2[k](1);
+
+        const double Ex1_0 = E0_0 * x1_0 + E0_1 * x1_1 + E0_2;
+        const double Ex1_1 = E1_0 * x1_0 + E1_1 * x1_1 + E1_2;
+        const double Ex1_2 = E2_0 * x1_0 + E2_1 * x1_1 + E2_2;
+
+        const double Ex2_0 = E0_0 * x2_0 + E1_0 * x2_1 + E2_0;
+        const double Ex2_1 = E0_1 * x2_0 + E1_1 * x2_1 + E2_1;
+        // const double Ex2_2 = E0_2 * x2_0 + E1_2 * x2_1 + E2_2;
+
+        const double C = x2_0 * Ex1_0 + x2_1 * Ex1_1 + Ex1_2;
+        const double Cx = Ex1_0 * Ex1_0 + Ex1_1 * Ex1_1;
+        const double Cy = Ex2_0 * Ex2_0 + Ex2_1 * Ex2_1;
+        const double r2 = C * C / (Cx + Cy);
+
+        bool sam_inlier = false;
+        if (r2 < sq_epipolar_t) {
+            bool cheirality =
+                check_cheirality(pose, x1[k].homogeneous().normalized(), x2[k].homogeneous().normalized(), 0.01);
+            if (cheirality) {
+                sam_inlier = true;
+                score += r2;
+            } else {
+                score += sq_epipolar_t;
+            }
+        } else {
+            score += sq_epipolar_t;
+        }
+
+        bool inlier_r1 = false;
+        const Eigen::Vector3d Z1 = R * (sigma[k](0) + shift_1) * x1[k].homogeneous().eval() + t;
+        if (Z1(2) < 0){
+            score += sq_reproj_t;
+        }
+        const double inv_z1 = 1.0 / Z1(2);
+        const double r10 = Z1(0) * inv_z1 - x2[k](0);
+        const double r11 = Z1(1) * inv_z1 - x2[k](1);
+        const double r_squared1 = r10 * r10 + r11 * r11;
+
+        if (r_squared1 > sq_reproj_t) {
+            score += sq_epipolar_t;
+        } else {
+            score += r_squared1;
+            inlier_r1 = true;
+        }
+
+        const Eigen::Vector3d Z2 =
+            Rt * (scale * (sigma[k](1) + shift_2) * x2[k].homogeneous().eval() - t);
+
+        bool inlier_r2 = false;
+        if (Z2(2) < 0){
+            score += sq_reproj_t;
+        }
+
+        const double inv_z2 = 1.0 / Z2(2);
+        const double r20 = Z2(0) * inv_z2 - x1[k](0);
+        const double r21 = Z2(1) * inv_z2 - x1[k](1);
+        const double r_squared2 = r20 * r20 + r21 * r21;
+
+        if (r_squared2 > sq_reproj_t) {
+            score += sq_reproj_t;
+        } else {
+            score += r_squared2;
+            inlier_r2 = true;
+        }
+
+        if (inlier_r1 && inlier_r2 && sam_inlier){
+            (*inlier_count)++;
+        }
+    }
+    return score;
+}
+
 double compute_homography_msac_score(const Eigen::Matrix3d &H, const std::vector<Point2D> &x1,
                                      const std::vector<Point2D> &x2, double sq_threshold, size_t *inlier_count) {
     *inlier_count = 0;
@@ -402,6 +497,95 @@ int get_inliers(const Eigen::Matrix3d &E, const std::vector<Point2D> &x1, const 
     }
     return inlier_count;
 }
+
+// Compute inliers for relative pose estimation (using Sampson error)
+int get_inliers(const CameraPose &pose, const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
+                const std::vector<Point2D> &sigma, double sq_reproj_t, double sq_epipolar_t, std::vector<char> *inliers) {
+    inliers->resize(x1.size());
+    Eigen::Matrix3d E;
+    essential_from_motion(pose, &E);
+    const double E0_0 = E(0, 0), E0_1 = E(0, 1), E0_2 = E(0, 2);
+    const double E1_0 = E(1, 0), E1_1 = E(1, 1), E1_2 = E(1, 2);
+    const double E2_0 = E(2, 0), E2_1 = E(2, 1), E2_2 = E(2, 2);
+
+    Eigen::Matrix3d R = pose.R();
+    Eigen::Matrix3d Rt = R.transpose();
+    Eigen::Vector3d t = pose.t;
+    double scale = pose.scale;
+    double shift_1 = pose.shift_1;
+    double shift_2 = pose.shift_2;
+
+    size_t inlier_count = 0.0;
+    for (size_t k = 0; k < x1.size(); ++k) {
+        const double x1_0 = x1[k](0), x1_1 = x1[k](1);
+        const double x2_0 = x2[k](0), x2_1 = x2[k](1);
+
+        const double Ex1_0 = E0_0 * x1_0 + E0_1 * x1_1 + E0_2;
+        const double Ex1_1 = E1_0 * x1_0 + E1_1 * x1_1 + E1_2;
+        const double Ex1_2 = E2_0 * x1_0 + E2_1 * x1_1 + E2_2;
+
+        const double Ex2_0 = E0_0 * x2_0 + E1_0 * x2_1 + E2_0;
+        const double Ex2_1 = E0_1 * x2_0 + E1_1 * x2_1 + E2_1;
+        // const double Ex2_2 = E0_2 * x2_0 + E1_2 * x2_1 + E2_2;
+
+        const double C = x2_0 * Ex1_0 + x2_1 * Ex1_1 + Ex1_2;
+
+        const double Cx = Ex1_0 * Ex1_0 + Ex1_1 * Ex1_1;
+        const double Cy = Ex2_0 * Ex2_0 + Ex2_1 * Ex2_1;
+
+        const double r2 = C * C / (Cx + Cy);
+
+        if (r2 < sq_epipolar_t) {
+            bool cheirality =
+                check_cheirality(pose, x1[k].homogeneous().normalized(), x2[k].homogeneous().normalized(), 0.01);
+            if (!cheirality) {
+                (*inliers)[k] = false;
+                continue;
+            }
+        } else {
+            (*inliers)[k] = false;
+            continue;
+        }
+
+        const Eigen::Vector3d Z1 = R * (sigma[k](0) + shift_1) * x1[k].homogeneous().eval() + t;
+        if (Z1(2) < 0){
+            (*inliers)[k] = false;
+            continue;
+        }
+        const double inv_z1 = 1.0 / Z1(2);
+        const double r10 = Z1(0) * inv_z1 - x2[k](0);
+        const double r11 = Z1(1) * inv_z1 - x2[k](1);
+        const double r_squared1 = r10 * r10 + r11 * r11;
+
+        if (r_squared1 > sq_reproj_t) {
+            (*inliers)[k] = false;
+            continue;
+        }
+
+        const Eigen::Vector3d Z2 =
+            Rt * (scale * (sigma[k](1) + shift_2) * x2[k].homogeneous().eval() - t);
+
+        if (Z2(2) < 0){
+            (*inliers)[k] = false;
+            continue;
+        }
+
+        const double inv_z2 = 1.0 / Z2(2);
+        const double r20 = Z2(0) * inv_z2 - x1[k](0);
+        const double r21 = Z2(1) * inv_z2 - x1[k](1);
+        const double r_squared2 = r20 * r20 + r21 * r21;
+
+        if (r_squared2 > sq_reproj_t) {
+            (*inliers)[k] = false;
+            continue;
+        }
+
+        (*inliers)[k] = true;
+        inlier_count++;
+    }
+    return inlier_count;
+}
+
 
 // Compute inliers for absolute pose estimation (using reprojection error and cheirality check)
 void get_inliers_1D_radial(const CameraPose &pose, const std::vector<Point2D> &x, const std::vector<Point3D> &X,

@@ -64,12 +64,15 @@ struct RansacOptions {
     bool no_normalization = false;
     bool use_reproj = false;
     bool optimize_shift = false;
+    bool optimize_symmetric = false;
+    bool optimize_hybrid = false;
     double min_focal_1 = 0.0;
     double max_focal_1 = 1e12;
     double min_focal_2 = 0.0;
     double max_focal_2 = 1e12;
     int graduated_steps = 0;
     bool filter_focals = false;
+    double weight_sampson = 1.0;
 };
 
 struct RansacStats {

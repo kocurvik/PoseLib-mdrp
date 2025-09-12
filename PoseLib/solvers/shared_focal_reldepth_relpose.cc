@@ -331,6 +331,7 @@ void shared_focal_s00f_relpose(const std::vector<Eigen::Vector2d> &x1, const std
         Eigen::Vector3d trans = trans2 - trans1;
 
         CameraPose pose = CameraPose(rot, trans);
+        pose.scale = s; 
         Camera camera = Camera("SIMPLE_PINHOLE", std::vector<double>{f, 0.0, 0.0}, -1, -1);
         models->emplace_back(pose, camera, camera);
     }

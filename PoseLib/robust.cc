@@ -267,8 +267,30 @@ RansacStats estimate_relative_pose_w_mono_depth(
             sigma_inliers.push_back(sigmas[k]);
         }
         BundleOptions scaled_bundle_opt = bundle_opt;
+
+        if (ransac_opt.optimize_hybrid){
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error) : 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.25 * ransac_opt.max_epipolar_error * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+
+            if (ransac_opt.optimize_shift){
+                refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj,
+                                                weight_sampson,
+                                                scaled_bundle_opt);
+            } else {
+                refine_calib_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
+                                          scaled_bundle_opt);
+            }
+            return stats;
+        }
+
         scaled_bundle_opt.loss_scale = bundle_opt.loss_scale * 0.5 * (1.0 / camera1.focal() + 1.0 / camera2.focal());
+
         if (ransac_opt.use_reproj) {
+            if (ransac_opt.optimize_symmetric){
+                refine_calib_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
+                return stats;
+            }
             if (ransac_opt.optimize_shift){
                 refine_calib_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scaled_bundle_opt);
                 return stats;
@@ -407,10 +429,35 @@ RansacStats estimate_shared_focal_monodepth_relative_pose(const std::vector<Poin
             sigma_inliers.push_back(sigma[k]);
         }
 
+        if (ransac_opt.optimize_hybrid){
+            BundleOptions scaled_bundle_opt = bundle_opt;
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error): 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.5 / scale * ransac_opt.max_epipolar_error;
+            // if (ransac_opt.optimize_shift){
+            //     refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
+            //                                     scaled_bundle_opt);
+            // } else {
+                refine_shared_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, weight_sampson,
+                                          scaled_bundle_opt);
+            // }
+            image_pair->camera1.params[0] *= scale;
+            image_pair->camera1.params[1] = 0; // pp(0);
+            image_pair->camera1.params[2] = 0; // pp(1);
+
+            image_pair->camera2 = image_pair->camera1;
+
+            return stats;
+        }
+
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift) {
                 refine_shared_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
-            } else {
+            } 
+            else if (ransac_opt.optimize_symmetric) {
+                refine_shared_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            }
+            else {
                 refine_shared_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             }
         } else {
@@ -483,9 +530,33 @@ RansacStats estimate_varying_focal_monodepth_relative_pose(const std::vector<Poi
             sigma_inliers.push_back(sigma[k]);
         }
 
+        if (ransac_opt.optimize_hybrid){
+            BundleOptions scaled_bundle_opt = bundle_opt;
+            double scale_reproj = (ransac_opt.max_reproj_error > 0.0) ? (ransac_opt.max_epipolar_error * ransac_opt.max_epipolar_error) / (ransac_opt.max_reproj_error * ransac_opt.max_reproj_error): 0.0;
+            double weight_sampson = (ransac_opt.weight_sampson > 0.0) ? ransac_opt.weight_sampson : 0.0;
+            scaled_bundle_opt.loss_scale = 0.5 / scale * ransac_opt.max_epipolar_error;
+            // if (ransac_opt.optimize_shift){
+            //     refine_calib_hybrid_scale_shift(x1_inliers, x2_inliers, sigma_inliers, pose, scale_reproj, weight_sampson,
+            //                                     scaled_bundle_opt);
+            // } else {
+            refine_varying_hybrid_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, scale_reproj, weight_sampson,
+                                       scaled_bundle_opt);
+            // }
+            image_pair->camera1.params[0] *= scale;
+            image_pair->camera1.params[1] = 0; // pp(0);
+            image_pair->camera1.params[2] = 0; // pp(1);
+            image_pair->camera2.params[0] *= scale;
+            image_pair->camera2.params[1] = 0; // pp(0);
+            image_pair->camera2.params[2] = 0; // pp(1);
+
+            return stats;
+        }
+
         if (ransac_opt.use_reproj) {
             if (ransac_opt.optimize_shift)
                 refine_varying_focal_abspose_shift(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
+            else if (ransac_opt.optimize_symmetric)
+                refine_varying_focal_symrepro_scale(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
             else
                 refine_varying_focal_abspose(x1_inliers, x2_inliers, sigma_inliers, image_pair, bundle_opt_scaled);
         } else {
@@ -509,9 +580,9 @@ RansacStats estimate_fundamental(const std::vector<Point2D> &x1, const std::vect
     }
 
     // We normalize points here to improve conditioning. Note that the normalization
-    // only ammounts to a uniform rescaling and shift of the image coordinate system
+    // only ammounts to a uniform rescaling and shift_1 of the image coordinate system
     // and the cost we minimize is equivalent to the cost in the original image
-    // for RFC we do not perform the shift as the pp needs to remain at [0, 0]
+    // for RFC we do not perform the shift_1 as the pp needs to remain at [0, 0]
 
     Eigen::Matrix3d T1, T2;
     std::vector<Point2D> x1_norm = x1;

@@ -869,6 +869,8 @@ PYBIND11_MODULE(poselib, m) {
         .def(py::init<>())
         .def_readwrite("q", &poselib::CameraPose::q)
         .def_readwrite("t", &poselib::CameraPose::t)
+        .def_readwrite("scale", &poselib::CameraPose::scale)
+        .def_readwrite("shift_1", &poselib::CameraPose::shift_1)
         .def_property("R", &poselib::CameraPose::R,
                       [](poselib::CameraPose &self, Eigen::Matrix3d R_new) { self.q = poselib::rotmat_to_quat(R_new); })
         .def_property("Rt", &poselib::CameraPose::Rt,
