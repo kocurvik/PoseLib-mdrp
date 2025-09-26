@@ -264,7 +264,7 @@ double compute_hybrid_msac_score(const CameraPose &pose, const std::vector<Point
         const double r_squared1 = r10 * r10 + r11 * r11;
 
         if (r_squared1 > sq_reproj_t) {
-            score += sq_epipolar_t;
+            score += sq_reproj_t;
         } else {
             score += r_squared1;
             inlier_r1 = true;
@@ -290,7 +290,7 @@ double compute_hybrid_msac_score(const CameraPose &pose, const std::vector<Point
             inlier_r2 = true;
         }
 
-        if (inlier_r1 && inlier_r2 && sam_inlier){
+        if (sam_inlier && inlier_r1 && inlier_r2){
             (*inlier_count)++;
         }
     }
